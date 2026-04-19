@@ -22,34 +22,32 @@ export async function POST(req: NextRequest) {
         const session = event.data.object
         const userId = session.metadata?.userId
         const plan = session.metadata?.plan
-
         if (userId && plan) {
           await supabase
             .from('profiles')
-            .update({
-              plan: plan === 'lifetime' ? 'lifetime' : 'basic',
-              stripe_customer_id: session.customer,
-            })
+            .update({ plan: plan === 'lifetime' ? 'lifetime' : 'basic', stripe_customer_id: session.customer })
             .eq('id', userId)
         }
         break
       }
-
       case 'customer.subscription.deleted': {
         const subscription = event.data.object
         const customerId = subscription.customer
-
         const { data: profile } = await supabase
           .from('profiles')
           .select('id')
           .eq('stripe_customer_id', customerId)
           .single()
-
         if (profile) {
-          await supabase
-            .from('profiles')
-            .update({ plan: 'free' })
-            .eq('id', profile.id)
+          await supabase.from('profiles').update({ plan: 'free' }).eq('id', profile.id)
         }
         break
       }
+    }
+  } catch (err: any) {
+    console.error('Webhook handler error:', err.message)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ received: true })
+}
