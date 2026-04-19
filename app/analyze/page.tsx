@@ -177,19 +177,10 @@ export default function Analyze() {
       const res = await fetch('/api/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceId,
-          plan,
-          userId: user?.id || null,
-          email: user?.email || null,
-        }),
+        body: JSON.stringify({ priceId, plan, userId: user?.id || null, email: user?.email || null }),
       });
       const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert('Something went wrong. Please try again.');
-      }
+      if (data.url) { window.location.href = data.url; } else { alert('Something went wrong. Please try again.'); }
     } catch (e) {
       alert('Something went wrong. Please try again.');
     } finally {
@@ -236,7 +227,7 @@ export default function Analyze() {
       const isExpanded = expandedCancel === group.platformKey;
       const bingeShows = group.shows.filter((s: any) => s.decision === 'binge-and-cancel' || s.status === 'ended' || s.status === 'between-seasons');
       const bingeShowsWithDates = bingeShows.filter((s: any) => s.cancelDate);
-      let latestBingeCancelDate: string | null = null;
+      let latestBingeCancelDate: string = '';
       let latestBingeCancelLabel: string | null = null;
       if (bingeShowsWithDates.length > 0) {
         latestBingeCancelDate = bingeShowsWithDates.reduce((latest: string, s: any) => s.cancelDate > latest ? s.cancelDate : latest, bingeShowsWithDates[0].cancelDate);
@@ -266,13 +257,13 @@ export default function Analyze() {
               </div>
             </div>
           )}
-          {group.decision === 'binge-and-cancel' && latestBingeCancelLabel && (
+          {group.decision === 'binge-and-cancel' && latestBingeCancelLabel && latestBingeCancelDate && (
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mb-2">
               <div className="text-yellow-400 text-sm font-medium">📅 {latestBingeCancelLabel}</div>
               <div className="text-yellow-400/70 text-xs mb-2">Save ${group.price}/mo (${(group.price * 12).toFixed(2)}/yr)</div>
               <div className="flex gap-2 mt-1">
-                <a href={makeGoogleCalUrl(group.name, latestBingeCancelDate!, group.price, group.platformKey)} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition inline-flex items-center gap-1">📆 Google Calendar</a>
-                <button onClick={() => downloadICS(group.name, latestBingeCancelDate!, group.price, group.platformKey)} className="text-xs px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition inline-flex items-center gap-1">🍎 Apple Calendar</button>
+                <a href={makeGoogleCalUrl(group.name, latestBingeCancelDate, group.price, group.platformKey)} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition inline-flex items-center gap-1">📆 Google Calendar</a>
+                <button onClick={() => downloadICS(group.name, latestBingeCancelDate, group.price, group.platformKey)} className="text-xs px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition inline-flex items-center gap-1">🍎 Apple Calendar</button>
               </div>
             </div>
           )}
@@ -362,7 +353,6 @@ export default function Analyze() {
           </div>
         )}
 
-        {/* Upsell / Checkout Section */}
         <div className="mb-6 border border-purple-500/30 rounded-2xl overflow-hidden">
           <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/10 p-6">
             <div className="text-xs text-purple-400 font-medium uppercase tracking-wider mb-2" style={{ fontFamily: 'var(--font-heading)' }}>You are leaving money on the table</div>
@@ -384,18 +374,10 @@ export default function Analyze() {
               <div className="flex items-start gap-2"><span className="text-green-400 text-sm mt-0.5">✓</span><span className="text-gray-300 text-sm">Free platform monitoring — we check weekly if your shows move to Tubi, Pluto TV, or Roku Channel</span></div>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => handleCheckout('basic')}
-                disabled={checkoutLoading !== null}
-                className="bg-purple-600 text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-purple-500 hover:scale-[1.02] transition-all shadow-lg shadow-purple-600/25 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null} className="bg-purple-600 text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-purple-500 hover:scale-[1.02] transition-all shadow-lg shadow-purple-600/25 disabled:opacity-60 disabled:cursor-not-allowed">
                 {checkoutLoading === 'basic' ? 'Redirecting...' : 'Get SavFlix Basic — $2.99/mo'}
               </button>
-              <button
-                onClick={() => handleCheckout('lifetime')}
-                disabled={checkoutLoading !== null}
-                className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-full text-sm font-bold hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] transition-all shadow-lg shadow-amber-600/25 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
+              <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-full text-sm font-bold hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] transition-all shadow-lg shadow-amber-600/25 disabled:opacity-60 disabled:cursor-not-allowed">
                 {checkoutLoading === 'lifetime' ? 'Redirecting...' : '$39 Lifetime — Pay Once'}
               </button>
             </div>
@@ -404,7 +386,6 @@ export default function Analyze() {
         </div>
 
         <div className="border-t border-gray-800 pt-4 mb-6"><div className="text-xs text-gray-600 text-center">Analysis powered by verified data from 26,000+ titles across 13 streaming platforms. Library counts sourced from TMDB. Subscription-included titles only — no rentals.</div></div>
-
         <div className="flex flex-wrap gap-3 mt-2">
           <button onClick={handleShare} className="border border-purple-500/50 text-purple-400 px-6 py-2.5 rounded-full text-sm font-medium hover:bg-purple-500/10 hover:scale-[1.02] transition-all inline-flex items-center gap-2">📤 Share Results</button>
           <button onClick={handleReset} className="border border-gray-700 text-gray-400 px-6 py-2.5 rounded-full text-sm font-medium hover:bg-gray-800 hover:scale-[1.02] transition-all">Run Another Analysis</button>
@@ -418,8 +399,6 @@ export default function Analyze() {
     <main className="min-h-screen bg-[#07060b] text-white px-6 py-10 max-w-3xl mx-auto relative" style={{ fontFamily: 'var(--font-body)' }}>
       <div className="fixed inset-0 pointer-events-none z-0"><div className="absolute top-[-20%] left-[50%] translate-x-[-50%] w-[700px] h-[500px] bg-purple-600/[0.06] rounded-full blur-[130px]" /></div>
       <div ref={topRef} className="relative z-10" />
-
-      {/* Nav */}
       <div className="relative z-10 flex items-center justify-between mb-10">
         <a href="/" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-400 via-emerald-400 to-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/20 group-hover:shadow-purple-500/40 transition-shadow duration-300">
@@ -460,7 +439,6 @@ export default function Analyze() {
             ))}
           </div>
           {selected.length > 0 && <div className="text-sm text-gray-400 mb-8">Current total: <span className="text-white font-semibold">${totalMonthly.toFixed(2)}/mo</span></div>}
-
           <div className="border-t border-white/[0.04] my-8" />
           <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Shows You Watch</h2>
           <div className="text-gray-400 text-xs mb-4">This helps us find the cheapest platform combo and build your binge plan.</div>
@@ -490,14 +468,12 @@ export default function Analyze() {
               })}
             </div>
           )}
-
           <div className="border-t border-white/[0.04] my-8" />
           <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Your Viewing Habits</h2>
           <div className="text-gray-400 text-xs mb-6">Answer all three questions so we can give you the best recommendation.</div>
           <div className="mb-6"><div className="text-sm text-gray-300 mb-3">What do you mostly watch?</div><div className="flex flex-wrap gap-2">{BROWSE_OPTIONS.map((opt) => (<button key={opt.id} onClick={() => setBrowseType(opt.label)} className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (browseType === opt.label ? "border-purple-500 bg-purple-500/10 text-white shadow-md shadow-purple-500/10" : "border-gray-700/50 text-gray-400 hover:border-gray-500 hover:scale-[1.02]")}>{opt.label}</button>))}</div></div>
           <div className="mb-6"><div className="text-sm text-gray-300 mb-3">Who usually watches?</div><div className="flex flex-wrap gap-2">{VIEWER_OPTIONS.map((opt) => (<button key={opt.id} onClick={() => setViewerType(opt.label)} className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (viewerType === opt.label ? "border-purple-500 bg-purple-500/10 text-white shadow-md shadow-purple-500/10" : "border-gray-700/50 text-gray-400 hover:border-gray-500 hover:scale-[1.02]")}>{opt.label}</button>))}</div></div>
           <div className="mb-8"><div className="text-sm text-gray-300 mb-3">What matters most to you?</div><div className="flex flex-wrap gap-2">{PRIORITY_OPTIONS.map((opt) => (<button key={opt.id} onClick={() => setPriority(opt.label)} className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (priority === opt.label ? "border-purple-500 bg-purple-500/10 text-white shadow-md shadow-purple-500/10" : "border-gray-700/50 text-gray-400 hover:border-gray-500 hover:scale-[1.02]")}>{opt.label}</button>))}</div></div>
-
           <button onClick={handleAnalyze} disabled={loading || !canAnalyze} className={"px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 w-full md:w-auto " + (canAnalyze ? "bg-gradient-to-r from-green-600 to-purple-600 text-white hover:from-green-500 hover:to-purple-500 hover:scale-[1.02] shadow-lg shadow-purple-600/20" : "bg-gray-700/50 text-gray-500 cursor-not-allowed")} style={{ fontFamily: 'var(--font-heading)' }}>
             {loading ? "Analyzing..." : !canAnalyze ? (selected.length === 0 ? "Select your subscriptions to start" : "Complete all viewing habits to analyze") : "Analyze My Subscriptions"}
           </button>
