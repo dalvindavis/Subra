@@ -13,8 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Subra",
-  description: "Stop paying for the same content twice.",
+  title: "SavFlix — Stop Overpaying for Streaming",
+  description: "SavFlix analyzes your streaming subscriptions and shows you exactly which platforms to keep, cancel, or binge — saving you $30 to $100 every month.",
+  icons: {
+    icon: "/savflix/savflix_app_icon_gradient.png",
+    apple: "/savflix/savflix_app_icon_gradient.png",
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +31,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-black text-white">
+      <body className="min-h-full flex flex-col bg-[#07060b] text-white">
         {children}
       </body>
     </html>
