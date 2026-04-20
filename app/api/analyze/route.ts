@@ -1,6 +1,5 @@
 // =============================================================================
-// SAVFLIX ANALYZE API ROUTE v5
-// Uses service role key for DB writes, anon key for reads
+// SAVFLIX ANALYZE API ROUTE v6
 // =============================================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -14,7 +13,6 @@ import {
   type Priority,
 } from '@/lib/engine';
 
-// Service role client for writes (bypasses RLS)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -22,9 +20,16 @@ const supabaseAdmin = createClient(
 
 function mapPreferences(prefs: any): Preferences | null {
   if (!prefs || !prefs.content || !prefs.audience || !prefs.priority) return null;
-  const contentMap: Record<string, ContentType> = { 'Series & Dramas': 'series', 'Movies': 'movies', 'Reality & Talk Shows': 'reality', 'A bit of everything': 'everything' };
-  const audienceMap: Record<string, Audience> = { 'Just me': 'solo', 'Me + partner': 'partner', 'Family with kids': 'family' };
-  const priorityMap: Record<string, Priority> = { 'Cheapest option': 'cheapest', 'Best quality content': 'quality', 'Biggest library to browse': 'library' };
+  const contentMap: Record<string, ContentType> = {
+    'Series & Dramas': 'series', 'Movies': 'movies',
+    'Reality & Talk Shows': 'reality', 'A bit of everything': 'everything',
+  };
+  const audienceMap: Record<string, Audience> = {
+    'Just me': 'solo', 'Me + partner': 'partner', 'Family with kids': 'family',
+  };
+  const priorityMap: Record<string, Priority> = {
+    'Cheapest option': 'cheapest', 'Best quality content': 'quality', 'Biggest library to browse': 'library',
+  };
   return {
     content: contentMap[prefs.content] || 'everything',
     audience: audienceMap[prefs.audience] || 'solo',
@@ -76,12 +81,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const userPlatforms: PlatformKey[] = (services || []).map((s: any) => SERVICE_TO_PLATFORM[s.name] || SERVICE_TO_PLATFORM[s]).filter(Boolean);
+    const userPlatforms: PlatformKey[] = (services || [])
+      .map((s: any) => SERVICE_TO_PLATFORM[s.name] || SERVICE_TO_PLATFORM[s])
+      .filter(Boolean);
+
     const showInputs: ShowInput[] = (shows || []).map((show: any) => ({
-      name: show.name, tmdbId: show.tmdbId || show.id,
-      providerIds: show.providerIds || [], freeProviderIds: show.freeProviderIds || [],
+      name: show.name,
+      tmdbId: show.tmdbId || show.id,
+      providerIds: show.providerIds || [],
+      freeProviderIds: show.freeProviderIds || [],
       tmdbStatus: show.tmdbStatus || show.status || 'Unknown',
-      nextEpisodeDate: show.nextEpisodeDate || null, seasonCount: show.seasonCount || undefined,
+      nextEpisodeDate: show.nextEpisodeDate || null,
+      seasonCount: show.seasonCount || undefined,
       posterPath: show.posterPath || show.poster || null,
       seasonFinaleDate: show.seasonFinaleDate || null,
       totalEpisodesInSeason: show.totalEpisodesInSeason || null,
@@ -92,22 +103,27 @@ export async function POST(req: NextRequest) {
     const analysis = analyzeSubscriptions(userPlatforms, showInputs, mappedPrefs);
 
     const responseData = {
-      platformGroups: analysis.platformGroups, freeShows: analysis.freeShows,
-      monthlySavings: analysis.monthlySavings, yearlySavings: analysis.yearlySavings,
-      browsingPick: analysis.browsingPick, scenario: analysis.scenario,
-      beforePrice: analysis.beforePrice, afterPrice: analysis.afterPrice,
+      platformGroups:       analysis.platformGroups,
+      freeShows:            analysis.freeShows,
+      missingPlatformShows: analysis.missingPlatformShows, // ✅ was missing
+      monthlySavings:       analysis.monthlySavings,
+      yearlySavings:        analysis.yearlySavings,
+      browsingPick:         analysis.browsingPick,
+      scenario:             analysis.scenario,
+      beforePrice:          analysis.beforePrice,
+      afterPrice:           analysis.afterPrice,
     };
 
     if (userId) {
       await Promise.all([
         supabaseAdmin.from('analyses').insert({
-          user_id: userId,
-          subscriptions: services,
-          shows: shows,
-          preferences: preferences,
-          results: responseData,
+          user_id:         userId,
+          subscriptions:   services,
+          shows:           shows,
+          preferences:     preferences,
+          results:         responseData,
           monthly_savings: analysis.monthlySavings,
-          yearly_savings: analysis.yearlySavings,
+          yearly_savings:  analysis.yearlySavings,
         }),
         supabaseAdmin.rpc('increment_scan_count', { user_id_input: userId }),
       ]);
