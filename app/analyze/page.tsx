@@ -114,16 +114,11 @@ export default function Analyze() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Auth gate
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        window.location.href = '/auth';
-      } else {
-        setUser(user);
-        setAuthLoading(false);
-      }
+      if (!user) { window.location.href = '/auth'; }
+      else { setUser(user); setAuthLoading(false); }
     };
     checkUser();
   }, []);
@@ -132,10 +127,7 @@ export default function Analyze() {
   useEffect(() => { if (!loading) { setLoadingMsg(0); return; } const timer = setInterval(() => { setLoadingMsg((prev) => (prev + 1) % LOADING_MESSAGES.length); }, 1200); return () => clearInterval(timer); }, [loading]);
   useEffect(() => { if (showQuery.length < 2) { setShowResults([]); return; } const timer = setTimeout(async () => { const res = await fetch(`/api/tmdb?query=${encodeURIComponent(showQuery)}`); const data = await res.json(); setShowResults(data.results || []); }, 400); return () => clearTimeout(timer); }, [showQuery]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/auth';
-  };
+  const handleSignOut = async () => { await supabase.auth.signOut(); window.location.href = '/auth'; };
 
   if (!mounted || authLoading) return null;
 
@@ -178,11 +170,31 @@ export default function Analyze() {
   };
 
   const handleAnalyze = async () => {
-    if (!canAnalyze) return; setLoading(true); setResult(""); setAnalysisData(null);
+    if (!canAnalyze) return;
+    setLoading(true); setResult(""); setAnalysisData(null);
     const services = selected.map((name) => { const svc = SERVICES.find((s) => s.name === name); return { name, price: svc?.price || 0 }; });
     const shows = myShows.map((s) => ({ name: s.name, tmdbId: s.id, providerIds: s.providerIds || [], freeProviderIds: s.freeProviderIds || [], tmdbStatus: s.tmdbStatus || "Unknown", nextEpisodeDate: s.nextEpisodeDate || null, seasonCount: s.seasonCount || 0, posterPath: s.posterPath || s.poster || null, seasonFinaleDate: s.seasonFinaleDate || null, totalEpisodesInSeason: s.totalEpisodesInSeason || null, lastEpisodeDate: s.lastEpisodeDate || null }));
     const preferences = { content: browseType, audience: viewerType, priority };
-    try { const res = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ services, shows, preferences }) }); const data = await res.json(); setResult(data.result || ""); setAnalysisData(data.analysis || null); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100); } catch { setResult("Something went wrong. Please try again."); } finally { setLoading(false); }
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ services, shows, preferences, userId: user?.id || null }),
+      });
+      const data = await res.json();
+      if (data.error === 'scan_limit_reached') {
+        setResult("scan_limit_reached");
+        setLoading(false);
+        return;
+      }
+      setResult(data.result || "");
+      setAnalysisData(data.analysis || null);
+      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+    } catch {
+      setResult("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReset = () => { setSelected([]); setMyShows([]); setResult(""); setAnalysisData(null); setShowQuery(""); setBrowseType(""); setViewerType(""); setPriority(""); setExpandedCancel(null); setShareMessage(""); window.scrollTo({ top: 0, behavior: 'smooth' }); };
@@ -193,21 +205,12 @@ export default function Analyze() {
     setCheckoutLoading(plan);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const priceId = plan === 'basic'
-        ? process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID
-        : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
-      const res = await fetch('/api/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceId, plan, userId: user?.id || null, email: user?.email || null }),
-      });
+      const priceId = plan === 'basic' ? process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
+      const res = await fetch('/api/create-checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priceId, plan, userId: user?.id || null, email: user?.email || null }) });
       const data = await res.json();
       if (data.url) { window.location.href = data.url; } else { alert('Something went wrong. Please try again.'); }
-    } catch (e) {
-      alert('Something went wrong. Please try again.');
-    } finally {
-      setCheckoutLoading(null);
-    }
+    } catch { alert('Something went wrong. Please try again.'); }
+    finally { setCheckoutLoading(null); }
   };
 
   const totalMonthly = selected.reduce((sum, name) => { const svc = SERVICES.find((s) => s.name === name); return sum + (svc?.price || 0); }, 0);
@@ -227,6 +230,28 @@ export default function Analyze() {
     if (show.decision === 'binge-and-cancel' && show.status === 'upcoming') return { text: 'Binge now — new season coming soon', color: 'text-blue-400' };
     return null;
   };
+
+  const renderScanLimitWall = () => (
+    <div className="relative z-10 mt-16 text-center">
+      <div className="border border-purple-500/25 bg-white/[0.02] rounded-2xl p-8 max-w-md mx-auto">
+        <div className="text-5xl mb-5">🔒</div>
+        <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Free Scans Used Up</h2>
+        <p className="text-gray-400 text-sm mb-2">You've used all 3 free analyses this month.</p>
+        <p className="text-gray-500 text-sm mb-8">Upgrade to run unlimited scans, save your results, and get cancel date reminders.</p>
+        <div className="flex flex-col gap-3">
+          <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3.5 rounded-full text-sm font-bold hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] transition-all shadow-lg shadow-amber-600/25 disabled:opacity-60">
+            {checkoutLoading === 'lifetime' ? 'Redirecting...' : '⭐ $39 Lifetime — Unlimited Scans Forever'}
+          </button>
+          <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null} className="bg-purple-600 text-white px-6 py-3.5 rounded-full text-sm font-semibold hover:bg-purple-500 hover:scale-[1.02] transition-all shadow-lg shadow-purple-600/25 disabled:opacity-60">
+            {checkoutLoading === 'basic' ? 'Redirecting...' : 'Get Basic — $2.99/mo'}
+          </button>
+          <button onClick={handleReset} className="text-gray-600 text-sm hover:text-gray-400 transition-colors">
+            Back to start
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderPremiumResults = () => {
     if (!analysisData) return null;
@@ -432,23 +457,14 @@ export default function Analyze() {
             Sav<span className="bg-gradient-to-r from-green-400 to-purple-400 bg-clip-text text-transparent">Flix</span>
           </span>
         </a>
-
-        {/* User info + sign out */}
         <div className="flex items-center gap-3">
-          {user?.user_metadata?.avatar_url && (
-            <img src={user.user_metadata.avatar_url} alt="avatar" className="w-7 h-7 rounded-full" />
-          )}
-          <span className="text-sm text-gray-400 hidden sm:block">
-            {user?.user_metadata?.full_name || user?.email}
-          </span>
-          <button
-            onClick={handleSignOut}
-            className="text-xs text-gray-500 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            Sign out
-          </button>
+          {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="avatar" className="w-7 h-7 rounded-full" />}
+          <span className="text-sm text-gray-400 hidden sm:block">{user?.user_metadata?.full_name || user?.email}</span>
+          <button onClick={handleSignOut} className="text-xs text-gray-500 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors">Sign out</button>
         </div>
       </div>
+
+      {result === 'scan_limit_reached' && renderScanLimitWall()}
 
       {!result && !analysisData && (
         <div className="relative z-10">
@@ -464,10 +480,7 @@ export default function Analyze() {
               <button key={svc.name} onClick={() => toggleService(svc.name)} className={"p-4 rounded-xl border text-left transition-all duration-300 " + (selected.includes(svc.name) ? "border-purple-500 bg-purple-900/30 text-white shadow-lg shadow-purple-500/15 scale-[1.02]" : "border-gray-700/50 bg-white/[0.02] text-gray-400 hover:border-purple-400/50 hover:bg-white/[0.04] hover:scale-[1.02]")} style={{ animationDelay: `${i * 30}ms` }}>
                 <div className="flex items-center gap-3">
                   <PlatformIcon name={svc.name} color="#6B7280" size="md" />
-                  <div>
-                    <div className="font-medium text-sm">{svc.name}</div>
-                    <div className="text-xs mt-0.5 text-gray-500">${svc.price}/mo</div>
-                  </div>
+                  <div><div className="font-medium text-sm">{svc.name}</div><div className="text-xs mt-0.5 text-gray-500">${svc.price}/mo</div></div>
                 </div>
               </button>
             ))}
@@ -511,7 +524,7 @@ export default function Analyze() {
           <button onClick={handleAnalyze} disabled={loading || !canAnalyze} className={"px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 w-full md:w-auto " + (canAnalyze ? "bg-gradient-to-r from-green-600 to-purple-600 text-white hover:from-green-500 hover:to-purple-500 hover:scale-[1.02] shadow-lg shadow-purple-600/20" : "bg-gray-700/50 text-gray-500 cursor-not-allowed")} style={{ fontFamily: 'var(--font-heading)' }}>
             {loading ? "Analyzing..." : !canAnalyze ? (selected.length === 0 ? "Select your subscriptions to start" : "Complete all viewing habits to analyze") : "Analyze My Subscriptions"}
           </button>
-          <div className="text-center mt-3 text-xs text-gray-600">Takes less than 60 seconds · No signup required</div>
+          <div className="text-center mt-3 text-xs text-gray-600">Takes less than 60 seconds · 3 free scans included</div>
         </div>
       )}
 
