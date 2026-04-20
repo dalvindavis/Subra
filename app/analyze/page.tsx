@@ -93,6 +93,8 @@ function generateShareText(analysisData: any): string {
 
 export default function Analyze() {
   const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [selected, setSelected] = useState<string[]>([]);
   const [showQuery, setShowQuery] = useState("");
   const [showResults, setShowResults] = useState<any[]>([]);
@@ -111,11 +113,31 @@ export default function Analyze() {
   const topRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Auth gate
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.href = '/auth';
+      } else {
+        setUser(user);
+        setAuthLoading(false);
+      }
+    };
+    checkUser();
+  }, []);
+
   useEffect(() => { (async () => { try { const res = await fetch('/api/tmdb?logos=true'); const data = await res.json(); if (data.logos) { Object.entries(data.logos).forEach(([key, url]) => { PLATFORM_LOGOS[key] = url as string; }); setLogoMap(data.logos); } } catch (e) { console.error('Failed to fetch platform logos:', e); } })(); }, []);
   useEffect(() => { if (!loading) { setLoadingMsg(0); return; } const timer = setInterval(() => { setLoadingMsg((prev) => (prev + 1) % LOADING_MESSAGES.length); }, 1200); return () => clearInterval(timer); }, [loading]);
   useEffect(() => { if (showQuery.length < 2) { setShowResults([]); return; } const timer = setTimeout(async () => { const res = await fetch(`/api/tmdb?query=${encodeURIComponent(showQuery)}`); const data = await res.json(); setShowResults(data.results || []); }, 400); return () => clearTimeout(timer); }, [showQuery]);
 
-  if (!mounted) return null;
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/auth';
+  };
+
+  if (!mounted || authLoading) return null;
 
   const allHabitsSelected = browseType !== "" && viewerType !== "" && priority !== "";
   const canAnalyze = selected.length > 0 && allHabitsSelected;
@@ -410,10 +432,22 @@ export default function Analyze() {
             Sav<span className="bg-gradient-to-r from-green-400 to-purple-400 bg-clip-text text-transparent">Flix</span>
           </span>
         </a>
-        <a href="/" className="text-sm text-gray-500 hover:text-white transition-colors duration-200 flex items-center gap-1.5">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 rotate-180"><path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" /></svg>
-          Back to Home
-        </a>
+
+        {/* User info + sign out */}
+        <div className="flex items-center gap-3">
+          {user?.user_metadata?.avatar_url && (
+            <img src={user.user_metadata.avatar_url} alt="avatar" className="w-7 h-7 rounded-full" />
+          )}
+          <span className="text-sm text-gray-400 hidden sm:block">
+            {user?.user_metadata?.full_name || user?.email}
+          </span>
+          <button
+            onClick={handleSignOut}
+            className="text-xs text-gray-500 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
 
       {!result && !analysisData && (
