@@ -1,6 +1,6 @@
 // =============================================================================
-// SAVFLIX ANALYZE API ROUTE v4
-// Adds: scan limit enforcement, analysis saving to Supabase
+// SAVFLIX ANALYZE API ROUTE v5
+// Uses service role key for DB writes, anon key for reads
 // =============================================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -14,9 +14,10 @@ import {
   type Priority,
 } from '@/lib/engine';
 
-const supabase = createClient(
+// Service role client for writes (bypasses RLS)
+const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 function mapPreferences(prefs: any): Preferences | null {
@@ -49,18 +50,17 @@ export async function POST(req: NextRequest) {
 
     // Check scan limit for free users
     if (userId) {
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('plan, scan_count, scan_reset_date')
         .eq('id', userId)
         .single();
 
       if (profile && profile.plan === 'free') {
-        // Reset count monthly
         const resetDate = new Date(profile.scan_reset_date);
         const now = new Date();
         if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
-          await supabase
+          await supabaseAdmin
             .from('profiles')
             .update({ scan_count: 0, scan_reset_date: now.toISOString().split('T')[0] })
             .eq('id', userId);
@@ -98,10 +98,9 @@ export async function POST(req: NextRequest) {
       beforePrice: analysis.beforePrice, afterPrice: analysis.afterPrice,
     };
 
-    // Save analysis and increment scan count
     if (userId) {
       await Promise.all([
-        supabase.from('analyses').insert({
+        supabaseAdmin.from('analyses').insert({
           user_id: userId,
           subscriptions: services,
           shows: shows,
@@ -110,7 +109,7 @@ export async function POST(req: NextRequest) {
           monthly_savings: analysis.monthlySavings,
           yearly_savings: analysis.yearlySavings,
         }),
-        supabase.rpc('increment_scan_count', { user_id_input: userId }),
+        supabaseAdmin.rpc('increment_scan_count', { user_id_input: userId }),
       ]);
     }
 
