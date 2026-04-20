@@ -1,11 +1,7 @@
 // =============================================================================
-// SAVFLIX DECISION ENGINE v9
-// 13 platforms, 2026 prices, ALL library counts verified from TMDB API
-// Features: Cancel dates, multi-platform transparency, calendar reminders,
-//           cancel URLs, browsing override, WHY statements, smart platform pick
-// v8: Pass 1 exclusivity fix
-// v9: Free shows no longer assigned to paid platforms, free shows excluded from Pass 1
-// Last verified: April 12, 2026
+// SAVFLIX DECISION ENGINE v10
+// Fixes: negative comparison bug, title count mismatch
+// Adds: missing platform detection for shows not on user subscriptions
 // =============================================================================
 
 export type PlatformKey =
@@ -17,7 +13,7 @@ export type ShowStatus = 'airing' | 'ended' | 'upcoming' | 'between-seasons';
 export type ContentType = 'series' | 'movies' | 'reality' | 'everything';
 export type Audience = 'solo' | 'partner' | 'family';
 export type Priority = 'cheapest' | 'quality' | 'library';
-export type Decision = 'keep' | 'keep-for-browsing' | 'cut' | 'binge-and-cancel' | 'free-elsewhere';
+export type Decision = 'keep' | 'keep-for-browsing' | 'cut' | 'binge-and-cancel' | 'free-elsewhere' | 'not-subscribed';
 
 export interface ShowAnalysis {
   name: string; tmdbId?: number; status: ShowStatus; statusLabel: string;
@@ -27,6 +23,7 @@ export interface ShowAnalysis {
   seasonFinaleDate?: string | null;
   allPlatforms: { platformKey: PlatformKey; name: string; color: string; price: number }[];
   chosenReason?: string;
+  missingPlatform?: { platformKey: PlatformKey; name: string; price: number } | null;
 }
 
 export interface PlatformGroup {
@@ -46,6 +43,7 @@ export interface BrowsingRecommendation {
 
 export interface AnalysisResult {
   platformGroups: PlatformGroup[]; freeShows: ShowAnalysis[];
+  missingPlatformShows: ShowAnalysis[];
   monthlySavings: number; yearlySavings: number;
   browsingPick: BrowsingRecommendation | null; scenario: Scenario;
   beforePrice: number; afterPrice: number;
@@ -150,6 +148,21 @@ export function resolveAllProviders(providerIds: number[], userPlatforms: Platfo
   return results;
 }
 
+// Resolve ALL providers regardless of user subscriptions (for missing platform detection)
+export function resolveAllProvidersGlobal(providerIds: number[]): { platformKey: PlatformKey; name: string; color: string; price: number }[] {
+  const seen = new Set<PlatformKey>();
+  const results: { platformKey: PlatformKey; name: string; color: string; price: number }[] = [];
+  for (const id of providerIds) {
+    const key = PROVIDER_MAP[id];
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      const p = PLATFORMS[key];
+      results.push({ platformKey: key, name: p.name, color: p.color, price: p.price });
+    }
+  }
+  return results;
+}
+
 export function pickBestPlatform(
   allPlatforms: { platformKey: PlatformKey; name: string; color: string; price: number }[],
   platformsBeingKept?: Set<PlatformKey>,
@@ -191,7 +204,7 @@ export function detectScenario(showCount: number, platformCount: number, hasQuiz
 
 export function decideShow(status: ShowStatus, platformKey: PlatformKey | null, freeOn: FreePlatform | null): { decision: Decision; reason: string } {
   if (freeOn) return { decision: 'free-elsewhere', reason: `Available free with ads on ${freeOn.name}` };
-  if (!platformKey) return { decision: 'cut', reason: 'Not available on any of your current subscriptions' };
+  if (!platformKey) return { decision: 'not-subscribed', reason: 'Not on any of your current subscriptions' };
   switch (status) {
     case 'airing': return { decision: 'keep', reason: 'Currently airing new episodes' };
     case 'ended': return { decision: 'binge-and-cancel', reason: 'Series has ended — binge it and cancel when done' };
@@ -202,12 +215,14 @@ export function decideShow(status: ShowStatus, platformKey: PlatformKey | null, 
 }
 
 function decidePlatform(shows: ShowAnalysis[]): { decision: Decision; reason: string } {
-  const hasAiring = shows.some((s) => s.status === 'airing' && s.decision === 'keep');
-  const allFree = shows.every((s) => s.decision === 'free-elsewhere');
-  const allBinge = shows.every((s) => s.decision === 'binge-and-cancel' || s.decision === 'free-elsewhere');
+  const relevantShows = shows.filter(s => s.decision !== 'not-subscribed');
+  const hasAiring = relevantShows.some((s) => s.status === 'airing' && s.decision === 'keep');
+  const allFree = relevantShows.every((s) => s.decision === 'free-elsewhere');
+  const allBinge = relevantShows.every((s) => s.decision === 'binge-and-cancel' || s.decision === 'free-elsewhere');
+  if (relevantShows.length === 0) return { decision: 'cut', reason: 'None of your selected shows are on this platform' };
   if (allFree) return { decision: 'cut', reason: 'All your shows on this platform are free elsewhere' };
   if (hasAiring) return { decision: 'keep', reason: 'You have shows currently airing here' };
-  if (shows.every((s) => s.status === 'ended')) return { decision: 'binge-and-cancel', reason: 'All your shows here have ended — binge and cancel' };
+  if (relevantShows.every((s) => s.status === 'ended')) return { decision: 'binge-and-cancel', reason: 'All your shows here have ended — binge and cancel' };
   if (allBinge) return { decision: 'binge-and-cancel', reason: 'Nothing currently airing — binge what you need and cancel' };
   return { decision: 'keep', reason: 'Active content worth keeping' };
 }
@@ -247,9 +262,37 @@ function scorePlatform(pk: PlatformKey, content: ContentType, audience: Audience
 
 function buildWhyStatement(pk: PlatformKey, content: ContentType, audience: Audience, priority: Priority, runnerUp: PlatformKey): string {
   const pName = PLATFORMS[pk].name;
-  if (priority === 'quality') { const q = getQualityCount(pk); const rq = getQualityCount(runnerUp); return `${pName} has ${q.toLocaleString()} highly rated titles (7.5+ average rating with 100+ reviews), which is ${(q - rq).toLocaleString()} more than ${PLATFORMS[runnerUp].name}. For premium quality content, this is your strongest subscription.`; }
-  if (priority === 'library') { const labels: Record<ContentType, string> = { series: 'drama/series titles', movies: 'movie titles', reality: 'reality/unscripted titles', everything: 'total titles' }; const myCount = getRelevantCount(pk, content, audience); const runnerCount = getRelevantCount(runnerUp, content, audience); return `${pName} has ${myCount.toLocaleString()} ${labels[content]}, which is ${(myCount - runnerCount).toLocaleString()} more than ${PLATFORMS[runnerUp].name}. For the biggest library to browse, this is your best option.`; }
-  if (priority === 'cheapest') { const perDollar = Math.round(getRelevantCount(pk, content, audience) / PLATFORMS[pk].price); return `${pName} gives you ${perDollar} relevant titles per dollar at $${PLATFORMS[pk].price}/mo — the best value for your budget.`; }
+  const lib = LIBRARY_COUNTS[pk];
+
+  if (priority === 'quality') {
+    const q = getQualityCount(pk);
+    const rq = getQualityCount(runnerUp);
+    const diff = q - rq;
+    if (diff > 0) {
+      return `${pName} has ${q.toLocaleString()} highly rated titles, which is ${diff.toLocaleString()} more than ${PLATFORMS[runnerUp].name}. For premium quality content, this is your strongest subscription.`;
+    }
+    return `${pName} has ${q.toLocaleString()} highly rated titles — the top pick for quality content based on your preferences.`;
+  }
+
+  if (priority === 'library') {
+    const labels: Record<ContentType, string> = {
+      series: 'drama/series titles', movies: 'movie titles',
+      reality: 'reality/unscripted titles', everything: 'total titles'
+    };
+    const myCount = getRelevantCount(pk, content, audience);
+    const runnerCount = getRelevantCount(runnerUp, content, audience);
+    const diff = myCount - runnerCount;
+    if (diff > 0) {
+      return `${pName} has ${myCount.toLocaleString()} ${labels[content]}, which is ${diff.toLocaleString()} more than ${PLATFORMS[runnerUp].name}. For the biggest library to browse, this is your best option.`;
+    }
+    return `${pName} has ${myCount.toLocaleString()} ${labels[content]} — the top pick for browsing based on your preferences.`;
+  }
+
+  if (priority === 'cheapest') {
+    const perDollar = Math.round(getRelevantCount(pk, content, audience) / PLATFORMS[pk].price);
+    return `${pName} gives you ${perDollar} relevant titles per dollar at $${PLATFORMS[pk].price}/mo — the best value for your budget.`;
+  }
+
   return `${pName} is the top pick based on your preferences.`;
 }
 
@@ -337,9 +380,19 @@ export function analyzeSubscriptions(userPlatforms: PlatformKey[], shows: ShowIn
   const analyzedShows: ShowAnalysis[] = shows.map((show) => {
     const status = mapStatus(show.tmdbStatus, show.nextEpisodeDate);
     const allPlatforms = resolveAllProviders(show.providerIds, userPlatforms);
+    const allPlatformsGlobal = resolveAllProvidersGlobal(show.providerIds);
     const freeOn = resolveFreeProvider(show.freeProviderIds);
     let chosen: PlatformKey | null = null;
     let chosenReason: string = '';
+
+    // Find the best missing platform (not in user's subscriptions)
+    let missingPlatform: { platformKey: PlatformKey; name: string; price: number } | null = null;
+    if (!freeOn && allPlatforms.length === 0 && allPlatformsGlobal.length > 0) {
+      // Show is on platforms user doesn't have — find cheapest option
+      const cheapest = allPlatformsGlobal.sort((a, b) => a.price - b.price)[0];
+      missingPlatform = { platformKey: cheapest.platformKey, name: cheapest.name, price: cheapest.price };
+    }
+
     if (!freeOn) {
       const pick = pickBestPlatform(allPlatforms, platformsBeingKept);
       chosen = pick.chosen; chosenReason = pick.reason;
@@ -352,6 +405,7 @@ export function analyzeSubscriptions(userPlatforms: PlatformKey[], shows: ShowIn
       nextEpisodeDate: show.nextEpisodeDate || undefined, posterPath: show.posterPath || null,
       cancelDate, cancelDateLabel, seasonFinaleDate: show.seasonFinaleDate || null,
       allPlatforms, chosenReason: allPlatforms.length > 1 && !freeOn ? chosenReason : undefined,
+      missingPlatform,
     };
   });
 
@@ -381,13 +435,17 @@ export function analyzeSubscriptions(userPlatforms: PlatformKey[], shows: ShowIn
     });
   }
 
-  const order: Record<Decision, number> = { keep: 0, 'keep-for-browsing': 1, 'binge-and-cancel': 2, 'free-elsewhere': 3, cut: 4 };
+  const order: Record<Decision, number> = { keep: 0, 'keep-for-browsing': 1, 'binge-and-cancel': 2, 'free-elsewhere': 3, cut: 4, 'not-subscribed': 5 };
   platformGroups.sort((a, b) => order[a.decision] - order[b.decision]);
   const afterPrice = beforePrice - monthlySavings;
 
+  const missingPlatformShows = analyzedShows.filter(s => s.decision === 'not-subscribed' && s.missingPlatform);
+
   return {
     platformGroups, freeShows: analyzedShows.filter((s) => s.freeOn !== null),
-    monthlySavings: Math.round(monthlySavings * 100) / 100, yearlySavings: Math.round(monthlySavings * 12 * 100) / 100,
+    missingPlatformShows,
+    monthlySavings: Math.round(monthlySavings * 100) / 100,
+    yearlySavings: Math.round(monthlySavings * 12 * 100) / 100,
     browsingPick, scenario: detectScenario(shows.length, new Set(analyzedShows.map((s) => s.platformKey).filter(Boolean)).size, !!preferences),
     beforePrice: Math.round(beforePrice * 100) / 100, afterPrice: Math.round(afterPrice * 100) / 100,
   };
@@ -396,7 +454,7 @@ export function analyzeSubscriptions(userPlatforms: PlatformKey[], shows: ShowIn
 export function formatAnalysisForAI(result: AnalysisResult): string {
   const lines: string[] = ['SUBSCRIPTION ANALYSIS RESULTS', `Savings: $${result.monthlySavings}/mo ($${result.yearlySavings}/yr)`, `Before: $${result.beforePrice}/mo → After: $${result.afterPrice}/mo`, ''];
   for (const g of result.platformGroups) {
-    const emoji = { keep: '✅', 'keep-for-browsing': '📺', 'binge-and-cancel': '⏱️', cut: '✂️', 'free-elsewhere': '🆓' }[g.decision];
+    const emoji = { keep: '✅', 'keep-for-browsing': '📺', 'binge-and-cancel': '⏱️', cut: '✂️', 'free-elsewhere': '🆓', 'not-subscribed': '🔒' }[g.decision];
     lines.push(`${emoji} ${g.name} ($${g.price}/mo) — ${g.decision.toUpperCase()}`, `   ${g.reason}`);
     if (g.cancelDateLabel) lines.push(`   📅 ${g.cancelDateLabel}`);
     if (g.bingeEstimate) lines.push(`   Binge time: ${g.bingeEstimate}`);

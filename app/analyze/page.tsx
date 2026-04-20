@@ -129,7 +129,16 @@ export default function Analyze() {
 
   const handleSignOut = async () => { await supabase.auth.signOut(); window.location.href = '/auth'; };
 
-  if (!mounted || authLoading) return null;
+  if (!mounted) return null;
+
+  if (authLoading) return (
+    <main className="min-h-screen bg-[#07060b] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+        <div className="text-gray-500 text-sm">Loading your account...</div>
+      </div>
+    </main>
+  );
 
   const allHabitsSelected = browseType !== "" && viewerType !== "" && priority !== "";
   const canAnalyze = selected.length > 0 && allHabitsSelected;
@@ -182,23 +191,15 @@ export default function Analyze() {
         body: JSON.stringify({ services, shows, preferences, userId: user?.id || null }),
       });
       const data = await res.json();
-      if (data.error === 'scan_limit_reached') {
-        setResult("scan_limit_reached");
-        setLoading(false);
-        return;
-      }
+      if (data.error === 'scan_limit_reached') { setResult("scan_limit_reached"); setLoading(false); return; }
       setResult(data.result || "");
       setAnalysisData(data.analysis || null);
       setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
-    } catch {
-      setResult("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    } catch { setResult("Something went wrong. Please try again."); }
+    finally { setLoading(false); }
   };
 
   const handleReset = () => { setSelected([]); setMyShows([]); setResult(""); setAnalysisData(null); setShowQuery(""); setBrowseType(""); setViewerType(""); setPriority(""); setExpandedCancel(null); setShareMessage(""); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-
   const handleShare = async () => { const text = generateShareText(analysisData); if (navigator.share) { try { await navigator.share({ title: 'My SavFlix Results', text }); } catch {} } else { await navigator.clipboard.writeText(text); setShareMessage("Copied to clipboard!"); setTimeout(() => setShareMessage(""), 2000); } };
 
   const handleCheckout = async (plan: 'basic' | 'lifetime') => {
@@ -245,9 +246,7 @@ export default function Analyze() {
           <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null} className="bg-purple-600 text-white px-6 py-3.5 rounded-full text-sm font-semibold hover:bg-purple-500 hover:scale-[1.02] transition-all shadow-lg shadow-purple-600/25 disabled:opacity-60">
             {checkoutLoading === 'basic' ? 'Redirecting...' : 'Get Basic — $2.99/mo'}
           </button>
-          <button onClick={handleReset} className="text-gray-600 text-sm hover:text-gray-400 transition-colors">
-            Back to start
-          </button>
+          <button onClick={handleReset} className="text-gray-600 text-sm hover:text-gray-400 transition-colors">Back to start</button>
         </div>
       </div>
     </div>
@@ -255,7 +254,7 @@ export default function Analyze() {
 
   const renderPremiumResults = () => {
     if (!analysisData) return null;
-    const { platformGroups, freeShows, monthlySavings, yearlySavings, browsingPick, beforePrice, afterPrice } = analysisData;
+    const { platformGroups, freeShows, missingPlatformShows, monthlySavings, yearlySavings, browsingPick, beforePrice, afterPrice } = analysisData;
     const keepGroups = platformGroups.filter((g: any) => g.decision === 'keep' || g.decision === 'keep-for-browsing');
     const bingeGroups = platformGroups.filter((g: any) => g.decision === 'binge-and-cancel');
     const cutGroups = platformGroups.filter((g: any) => g.decision === 'cut');
@@ -282,7 +281,6 @@ export default function Analyze() {
         latestBingeCancelLabel = `Binge all ${bingeShows.length} show${bingeShows.length > 1 ? 's' : ''}, then cancel after ${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}, ${d.getFullYear()}`;
       }
       const cutReason = group.decision === 'cut' && group.shows.length === 0 ? `You're paying $${group.price}/mo for zero shows you watch` : group.reason;
-
       return (
         <div key={group.platformKey} className={`border ${colors.border} ${colors.bg} rounded-xl p-5 mb-3 animate-fade-in-up`} style={{ animationDelay: `${index * 100}ms` }}>
           <div className="flex items-center justify-between mb-2">
@@ -390,12 +388,61 @@ export default function Analyze() {
         {bingeGroups.length > 0 && (<div className="mb-6"><h2 className="text-lg font-semibold mb-3 text-yellow-400" style={{ fontFamily: 'var(--font-heading)' }}>Binge and Cancel</h2>{bingeGroups.map((g: any, i: number) => renderPlatformCard(g, i))}</div>)}
         {cutGroups.length > 0 && (<div className="mb-6"><h2 className="text-lg font-semibold mb-3 text-red-400" style={{ fontFamily: 'var(--font-heading)' }}>What to Cut</h2>{cutGroups.length > 1 && <div className="text-red-400/70 text-sm mb-3">Cutting {cutGroups.length} platforms saves you ${cutSavings.toFixed(2)}/mo</div>}{cutGroups.map((g: any, i: number) => renderPlatformCard(g, i))}</div>)}
 
-        {freeShows.length > 0 && (
+        {freeShows && freeShows.length > 0 && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-3 text-emerald-400" style={{ fontFamily: 'var(--font-heading)' }}>Free Alternatives</h2>
             <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-xl p-5">
               <div className="text-gray-400 text-sm mb-3">These shows are available for free with ads:</div>
               <div className="space-y-2">{freeShows.map((show: any, i: number) => (<div key={i} className="flex items-center gap-3">{show.posterPath && <img src={show.posterPath} alt={show.name} className="w-8 h-12 rounded object-cover" />}<span className="text-sm text-emerald-300">{show.name} <span className="text-emerald-500">on {show.freeOn?.name}</span></span></div>))}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Missing Platform Discovery — Premium upsell */}
+        {missingPlatformShows && missingPlatformShows.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-1 text-purple-400" style={{ fontFamily: 'var(--font-heading)' }}>Shows Not on Your Platforms</h2>
+            <div className="text-gray-500 text-xs mb-3">These shows you searched aren't on any of your current subscriptions.</div>
+            <div className="border border-purple-500/20 bg-purple-500/5 rounded-xl p-5">
+              <div className="space-y-3">
+                {missingPlatformShows.map((show: any, i: number) => (
+                  <div key={i} className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-lg p-3">
+                    {show.posterPath && <img src={show.posterPath} alt={show.name} className="w-10 h-14 rounded object-cover flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-sm font-medium text-white">{show.name}</span>
+                        <span className="text-xs text-gray-500">({show.statusLabel})</span>
+                      </div>
+                      {show.missingPlatform ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-gray-400">Available on</span>
+                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-500/20 border border-purple-500/30">
+                            <PlatformIcon name={show.missingPlatform.name} platformKey={show.missingPlatform.platformKey} color="#9333ea" size="sm" />
+                            <span className="text-xs text-purple-300 font-medium">{show.missingPlatform.name}</span>
+                            <span className="text-xs text-gray-500">${show.missingPlatform.price}/mo</span>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500">Platform not identified</div>
+                      )}
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400">🔒 Upgrade to see full recommendation</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/5">
+                <div className="text-xs text-gray-500 mb-3">Upgrade to see whether adding these platforms is worth it based on your total spend and viewing habits.</div>
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null} className="bg-purple-600 text-white px-4 py-2 rounded-full text-xs font-semibold hover:bg-purple-500 transition-all disabled:opacity-60">
+                    {checkoutLoading === 'basic' ? 'Redirecting...' : 'Unlock — $2.99/mo'}
+                  </button>
+                  <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-full text-xs font-bold hover:from-amber-400 hover:to-orange-400 transition-all disabled:opacity-60">
+                    {checkoutLoading === 'lifetime' ? 'Redirecting...' : '$39 Lifetime'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
