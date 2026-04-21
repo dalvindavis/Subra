@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
-let PLATFORM_LOGOS: Record<string, string> = {
+const PLATFORM_LOGOS_DEFAULT: Record<string, string> = {
   netflix:          'https://image.tmdb.org/t/p/w92/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg',
   hulu:             'https://image.tmdb.org/t/p/w92/giwM8XX4V2AQb9vsoN7yti82tKK.jpg',
   'disney-plus':    'https://image.tmdb.org/t/p/w92/7rwgEs15tFwyR9NPQ5vpzxTj19Q.jpg',
@@ -19,18 +19,12 @@ let PLATFORM_LOGOS: Record<string, string> = {
   'mgm-plus':       'https://image.tmdb.org/t/p/w92/2YOk2ST0zdUwbVbJIm1bh9O7cDn.jpg',
 };
 
-function getPlatformLogo(nameOrKey: string): string | null {
-  if (PLATFORM_LOGOS[nameOrKey]) return PLATFORM_LOGOS[nameOrKey];
-  const keyMap: Record<string, string> = {
-    Netflix: 'netflix', Hulu: 'hulu', 'Disney+': 'disney-plus', 'HBO Max': 'hbo-max',
-    Peacock: 'peacock', 'Paramount+': 'paramount-plus', 'Apple TV+': 'apple-tv',
-    'Prime Video': 'prime-video', 'AMC+': 'amc-plus', Starz: 'starz',
-    'Discovery+': 'discovery-plus', Crunchyroll: 'crunchyroll', 'MGM+': 'mgm-plus',
-  };
-  const key = keyMap[nameOrKey];
-  if (key && PLATFORM_LOGOS[key]) return PLATFORM_LOGOS[key];
-  return null;
-}
+const KEY_MAP: Record<string, string> = {
+  Netflix: 'netflix', Hulu: 'hulu', 'Disney+': 'disney-plus', 'HBO Max': 'hbo-max',
+  Peacock: 'peacock', 'Paramount+': 'paramount-plus', 'Apple TV+': 'apple-tv',
+  'Prime Video': 'prime-video', 'AMC+': 'amc-plus', Starz: 'starz',
+  'Discovery+': 'discovery-plus', Crunchyroll: 'crunchyroll', 'MGM+': 'mgm-plus',
+};
 
 const PROVIDER_MAP: Record<number, string> = {
   8: 'netflix', 1796: 'netflix', 175: 'netflix',
@@ -59,19 +53,19 @@ function resolveGlobalPlatformKeys(providerIds: number[]): string[] {
 }
 
 const CANCEL_URLS: Record<string, { url: string; steps: string }> = {
-  netflix:          { url: 'https://www.netflix.com/cancelplan',          steps: 'Go to netflix.com/cancelplan and click "Finish Cancellation"' },
-  hulu:             { url: 'https://secure.hulu.com/account',             steps: 'Click "Cancel Your Subscription" under Your Subscription' },
-  'disney-plus':    { url: 'https://www.disneyplus.com/account',          steps: 'Select your subscription, click "Cancel Subscription"' },
-  'hbo-max':        { url: 'https://www.max.com/account',                 steps: 'Select Subscription, click "Cancel Subscription"' },
-  peacock:          { url: 'https://www.peacocktv.com/account/plan',      steps: 'Select your plan, click "Cancel Plan"' },
-  'paramount-plus': { url: 'https://www.paramountplus.com/account/',      steps: 'Click "Cancel Subscription" under Subscription & Billing' },
-  'apple-tv':       { url: 'https://support.apple.com/en-us/HT202039',   steps: 'Settings > your name > Subscriptions > Apple TV+' },
-  'prime-video':    { url: 'https://www.amazon.com/gp/video/settings',    steps: 'Amazon account > Prime membership > "End Membership"' },
-  'amc-plus':       { url: 'https://www.amcplus.com/account',             steps: 'Go to Account, click "Cancel Subscription"' },
-  starz:            { url: 'https://www.starz.com/account',               steps: 'Go to Account, click "Cancel Subscription"' },
-  'discovery-plus': { url: 'https://www.discoveryplus.com/account',       steps: 'Subscription > click "Cancel Subscription"' },
+  netflix:          { url: 'https://www.netflix.com/cancelplan',             steps: 'Go to netflix.com/cancelplan and click "Finish Cancellation"' },
+  hulu:             { url: 'https://secure.hulu.com/account',                steps: 'Click "Cancel Your Subscription" under Your Subscription' },
+  'disney-plus':    { url: 'https://www.disneyplus.com/account',             steps: 'Select your subscription, click "Cancel Subscription"' },
+  'hbo-max':        { url: 'https://www.max.com/account',                    steps: 'Select Subscription, click "Cancel Subscription"' },
+  peacock:          { url: 'https://www.peacocktv.com/account/plan',         steps: 'Select your plan, click "Cancel Plan"' },
+  'paramount-plus': { url: 'https://www.paramountplus.com/account/',         steps: 'Click "Cancel Subscription" under Subscription & Billing' },
+  'apple-tv':       { url: 'https://support.apple.com/en-us/HT202039',      steps: 'Settings > your name > Subscriptions > Apple TV+' },
+  'prime-video':    { url: 'https://www.amazon.com/gp/video/settings',       steps: 'Amazon account > Prime membership > "End Membership"' },
+  'amc-plus':       { url: 'https://www.amcplus.com/account',                steps: 'Go to Account, click "Cancel Subscription"' },
+  starz:            { url: 'https://www.starz.com/account',                  steps: 'Go to Account, click "Cancel Subscription"' },
+  'discovery-plus': { url: 'https://www.discoveryplus.com/account',          steps: 'Subscription > click "Cancel Subscription"' },
   crunchyroll:      { url: 'https://www.crunchyroll.com/account/membership', steps: 'Account Settings > Premium Membership > "Cancel"' },
-  'mgm-plus':       { url: 'https://www.mgmplus.com/account',             steps: 'Go to Account, click "Cancel Subscription"' },
+  'mgm-plus':       { url: 'https://www.mgmplus.com/account',                steps: 'Go to Account, click "Cancel Subscription"' },
 };
 
 const SERVICES = [
@@ -164,6 +158,7 @@ export default function Analyze() {
   const [mounted,         setMounted]         = useState(false);
   const [user,            setUser]            = useState<any>(null);
   const [authLoading,     setAuthLoading]     = useState(true);
+  const [platformLogos,   setPlatformLogos]   = useState<Record<string, string>>(PLATFORM_LOGOS_DEFAULT);
   const [selected,        setSelected]        = useState<string[]>([]);
   const [showQuery,       setShowQuery]       = useState("");
   const [showResults,     setShowResults]     = useState<any[]>([]);
@@ -180,6 +175,14 @@ export default function Analyze() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
+  // Resolve logo from state
+  const getPlatformLogo = useCallback((nameOrKey: string): string | null => {
+    if (platformLogos[nameOrKey]) return platformLogos[nameOrKey];
+    const key = KEY_MAP[nameOrKey];
+    if (key && platformLogos[key]) return platformLogos[key];
+    return null;
+  }, [platformLogos]);
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -190,16 +193,14 @@ export default function Analyze() {
     })();
   }, []);
 
-  // Fetch verified logo paths from TMDB on mount
+  // Fetch correct logo paths from TMDB — stored in state so React re-renders
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/tmdb?logos=true');
+        const res  = await fetch('/api/tmdb?logos=true');
         const data = await res.json();
-        if (data.logos) {
-          Object.entries(data.logos).forEach(([k, v]) => {
-            PLATFORM_LOGOS[k] = v as string;
-          });
+        if (data.logos && Object.keys(data.logos).length > 0) {
+          setPlatformLogos(prev => ({ ...prev, ...data.logos }));
         }
       } catch (e) {
         console.error('Failed to fetch platform logos:', e);
@@ -359,6 +360,7 @@ export default function Analyze() {
     finally { setCheckoutLoading(null); }
   };
 
+  // PlatformIcon uses getPlatformLogo from state via useCallback
   const PlatformIcon = ({ name, platformKey, color, size = 'sm' }: { name: string; platformKey?: string; color: string; size?: 'sm' | 'md' | 'lg' }) => {
     const logo = getPlatformLogo(name) || (platformKey ? getPlatformLogo(platformKey) : null);
     const sz   = { sm: 'w-7 h-7', md: 'w-8 h-8', lg: 'w-10 h-10' }[size];
@@ -368,10 +370,10 @@ export default function Analyze() {
   };
 
   const getShowActionLabel = (show: any): { text: string; color: string } | null => {
-    if (show.decision === 'free-elsewhere' && show.freeOn)              return { text: `Watch free on ${show.freeOn.name} instead`,  color: 'text-emerald-400' };
-    if (show.decision === 'binge-and-cancel' && show.status === 'ended')           return { text: 'Binge this — series has ended',           color: 'text-yellow-400' };
-    if (show.decision === 'binge-and-cancel' && show.status === 'between-seasons') return { text: 'Binge and catch up — between seasons',     color: 'text-yellow-400' };
-    if (show.decision === 'binge-and-cancel' && show.status === 'upcoming')        return { text: 'Binge now — new season coming soon',       color: 'text-blue-400'   };
+    if (show.decision === 'free-elsewhere' && show.freeOn)                         return { text: `Watch free on ${show.freeOn.name} instead`, color: 'text-emerald-400' };
+    if (show.decision === 'binge-and-cancel' && show.status === 'ended')           return { text: 'Binge this — series has ended',             color: 'text-yellow-400' };
+    if (show.decision === 'binge-and-cancel' && show.status === 'between-seasons') return { text: 'Binge and catch up — between seasons',       color: 'text-yellow-400' };
+    if (show.decision === 'binge-and-cancel' && show.status === 'upcoming')        return { text: 'Binge now — new season coming soon',         color: 'text-blue-400'  };
     return null;
   };
 
