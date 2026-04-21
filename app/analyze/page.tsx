@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
-let PLATFORM_LOGOS: Record<string, string> = {
+const PLATFORM_LOGOS: Record<string, string> = {
   netflix:          'https://image.tmdb.org/t/p/w92/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg',
   hulu:             'https://image.tmdb.org/t/p/w92/giwM8XX4V2AQb9vsoN7yti82tKK.jpg',
   'disney-plus':    'https://image.tmdb.org/t/p/w92/7rwgEs15tFwyR9NPQ5vpzxTj19Q.jpg',
@@ -182,7 +182,7 @@ export default function Analyze() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // KEY CHANGE: check user but NEVER redirect — allow anonymous
+  // Check user but NEVER redirect — allow anonymous
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -191,15 +191,7 @@ export default function Analyze() {
     })();
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res  = await fetch('/api/tmdb?logos=true');
-        const data = await res.json();
-        if (data.logos) Object.entries(data.logos).forEach(([k, v]) => { PLATFORM_LOGOS[k] = v as string; });
-      } catch (e) { console.error('Failed to fetch platform logos:', e); }
-    })();
-  }, []);
+  // NO logo fetch useEffect — logos are hardcoded above
 
   useEffect(() => {
     if (!loading) { setLoadingMsg(0); return; }
@@ -219,10 +211,9 @@ export default function Analyze() {
 
   if (!mounted) return null;
 
-  // Show minimal loading only for a moment while checking auth
   if (authLoading) return (
     <main className="min-h-screen bg-[#07070B] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-[#A855F7]/20 border-t-[#A855F7] rounded-full animate-spin" />
     </main>
   );
 
@@ -337,7 +328,6 @@ export default function Analyze() {
     else { await navigator.clipboard.writeText(text); setShareMessage("Copied to clipboard!"); setTimeout(() => setShareMessage(""), 2000); }
   };
 
-  // KEY CHANGE: anonymous users go straight to Stripe, no auth gate
   const handleCheckout = async (plan: 'basic' | 'lifetime') => {
     setCheckoutLoading(plan);
     try {
@@ -506,7 +496,7 @@ export default function Analyze() {
     );
   };
 
-  // ── Missing shows section ────────────────────────────────────────────────────
+  // ── Missing shows ────────────────────────────────────────────────────────────
   const renderMissingShows = (missingPlatformShows: any[]) => {
     if (!missingPlatformShows?.length) return null;
     const byPlatform: Record<string, { platformName: string; price: number; platformKey: string; shows: any[] }> = {};
@@ -632,7 +622,7 @@ export default function Analyze() {
       <div className="mb-6 rounded-[28px] border border-white/10 overflow-hidden">
         <div className="bg-gradient-to-r from-[#0E1320] to-[#130B22] p-6">
           <div className="text-lg font-bold text-white mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Keep your plan optimized over time</div>
-          <div className="text-white/50 text-sm mb-4">Your current setup looks right for your shows. But prices change, shows move platforms, and seasons end. SavFlix monitors all of it so you never overpay.</div>
+          <div className="text-white/50 text-sm mb-4">Your current setup looks right. But prices change, shows move, and seasons end. SavFlix monitors all of it so you never overpay.</div>
           <div className="space-y-2 mb-5">
             {[
               "Cancel date reminders — know exactly when to cancel after a season ends",
@@ -675,7 +665,6 @@ export default function Analyze() {
         <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Your Results</h1>
         <div className="text-white/50 text-sm mb-6">Based on {selected.length} subscription{selected.length !== 1 ? 's' : ''}{myShows.length > 0 ? ` and ${myShows.length} show${myShows.length !== 1 ? 's' : ''}` : ""}</div>
 
-        {/* Optimized plan card */}
         <div className="rounded-[28px] border border-[#A855F7]/25 bg-[#0D0F14] p-6 mb-8 shadow-[0_0_60px_rgba(168,85,247,0.08)]">
           <div className="text-[#C084FC] text-xs font-medium uppercase tracking-[0.24em] mb-3" style={{ fontFamily: 'var(--font-heading)' }}>Your Optimized Plan</div>
           {keepGroups.length > 0 && (
@@ -814,7 +803,6 @@ export default function Analyze() {
 
       {!result && !analysisData && (
         <div className="relative z-10">
-          {/* Progress */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/30" style={{ fontFamily: 'var(--font-heading)' }}>Step {currentStep} of 3</span>
@@ -828,7 +816,6 @@ export default function Analyze() {
           <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Build Your Streaming Profile</h1>
           <div className="text-white/50 text-sm mb-8">Select your subscriptions and tell us what you watch. We will find the smartest way to save.</div>
 
-          {/* Subscriptions */}
           <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: 'var(--font-heading)' }}>Your Subscriptions</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
             {SERVICES.map((svc, i) => (
@@ -845,7 +832,6 @@ export default function Analyze() {
 
           <div className="border-t border-white/[0.04] my-8" />
 
-          {/* Shows */}
           <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Shows You Watch</h2>
           <div className="text-white/40 text-xs mb-4">This helps us find the cheapest platform combo and build your binge plan.</div>
           <div className="relative mb-4">
@@ -898,7 +884,6 @@ export default function Analyze() {
 
           <div className="border-t border-white/[0.04] my-8" />
 
-          {/* Viewing habits */}
           <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Your Viewing Habits</h2>
           <div className="text-white/40 text-xs mb-6">Answer all three questions so we can give you the best recommendation.</div>
           <div className="mb-6">
@@ -906,7 +891,7 @@ export default function Analyze() {
             <div className="flex flex-wrap gap-2">
               {BROWSE_OPTIONS.map(opt => (
                 <button key={opt.id} onClick={() => setBrowseType(opt.label)}
-                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (browseType === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
+                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (browseType === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
                   {opt.label}
                 </button>
               ))}
@@ -917,7 +902,7 @@ export default function Analyze() {
             <div className="flex flex-wrap gap-2">
               {VIEWER_OPTIONS.map(opt => (
                 <button key={opt.id} onClick={() => setViewerType(opt.label)}
-                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (viewerType === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
+                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (viewerType === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
                   {opt.label}
                 </button>
               ))}
@@ -928,7 +913,7 @@ export default function Analyze() {
             <div className="flex flex-wrap gap-2">
               {PRIORITY_OPTIONS.map(opt => (
                 <button key={opt.id} onClick={() => setPriority(opt.label)}
-                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (priority === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
+                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (priority === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
                   {opt.label}
                 </button>
               ))}
