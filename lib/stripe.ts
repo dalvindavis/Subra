@@ -1,6 +1,8 @@
-import Stripe from 'stripe'
+import Stripe from 'stripe';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2026-03-25.dahlia',
+});
 
 export const PLANS = {
   basic: {
@@ -15,4 +17,4 @@ export const PLANS = {
     priceId: process.env.STRIPE_LIFETIME_PRICE_ID!,
     interval: 'once',
   },
-}
+};
