@@ -1,8 +1,5 @@
+@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 :root {
   --bg-main: #07070B;
@@ -41,19 +38,6 @@ body::before {
   z-index: 9999;
 }
 
-@layer utilities {
-  .glass {
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-  }
-  .animate-fade-in-up {
-    animation: fadeInUp 0.5s ease forwards;
-  }
-  .animate-fade-in-scale {
-    animation: fadeInScale 0.5s ease forwards;
-  }
-}
-
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -62,4 +46,17 @@ body::before {
 @keyframes fadeInScale {
   from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.5s ease forwards;
+}
+
+.glass {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
