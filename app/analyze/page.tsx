@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
-const PLATFORM_LOGOS: Record<string, string> = {
+let PLATFORM_LOGOS: Record<string, string> = {
   netflix:          'https://image.tmdb.org/t/p/w92/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg',
   hulu:             'https://image.tmdb.org/t/p/w92/giwM8XX4V2AQb9vsoN7yti82tKK.jpg',
   'disney-plus':    'https://image.tmdb.org/t/p/w92/7rwgEs15tFwyR9NPQ5vpzxTj19Q.jpg',
@@ -182,7 +182,6 @@ export default function Analyze() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Check user but NEVER redirect — allow anonymous
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -191,7 +190,22 @@ export default function Analyze() {
     })();
   }, []);
 
-  // NO logo fetch useEffect — logos are hardcoded above
+  // Fetch verified logo paths from TMDB on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/tmdb?logos=true');
+        const data = await res.json();
+        if (data.logos) {
+          Object.entries(data.logos).forEach(([k, v]) => {
+            PLATFORM_LOGOS[k] = v as string;
+          });
+        }
+      } catch (e) {
+        console.error('Failed to fetch platform logos:', e);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!loading) { setLoadingMsg(0); return; }
@@ -345,8 +359,6 @@ export default function Analyze() {
     finally { setCheckoutLoading(null); }
   };
 
-  // ── Components ───────────────────────────────────────────────────────────────
-
   const PlatformIcon = ({ name, platformKey, color, size = 'sm' }: { name: string; platformKey?: string; color: string; size?: 'sm' | 'md' | 'lg' }) => {
     const logo = getPlatformLogo(name) || (platformKey ? getPlatformLogo(platformKey) : null);
     const sz   = { sm: 'w-7 h-7', md: 'w-8 h-8', lg: 'w-10 h-10' }[size];
@@ -363,7 +375,6 @@ export default function Analyze() {
     return null;
   };
 
-  // ── Scan limit wall ──────────────────────────────────────────────────────────
   const renderScanLimitWall = () => (
     <div className="relative z-10 mt-16 text-center">
       <div className="border border-[#A855F7]/25 bg-white/[0.02] rounded-[28px] p-8 max-w-md mx-auto">
@@ -386,7 +397,6 @@ export default function Analyze() {
     </div>
   );
 
-  // ── Platform card ────────────────────────────────────────────────────────────
   const renderPlatformCard = (group: any, index: number) => {
     const decisionColors: Record<string, { border: string; bg: string; badge: string; badgeText: string }> = {
       keep:                { border: 'border-emerald-500/30', bg: 'bg-emerald-500/5',  badge: 'bg-emerald-500/20', badgeText: 'text-emerald-400' },
@@ -496,7 +506,6 @@ export default function Analyze() {
     );
   };
 
-  // ── Missing shows ────────────────────────────────────────────────────────────
   const renderMissingShows = (missingPlatformShows: any[]) => {
     if (!missingPlatformShows?.length) return null;
     const byPlatform: Record<string, { platformName: string; price: number; platformKey: string; shows: any[] }> = {};
@@ -565,7 +574,6 @@ export default function Analyze() {
     );
   };
 
-  // ── ROI upsell ───────────────────────────────────────────────────────────────
   const renderUpsell = (yearlySavings: number) => {
     const annualSavings    = Math.round(yearlySavings * 100) / 100;
     const basicAnnualCost  = 35.88;
@@ -650,7 +658,6 @@ export default function Analyze() {
     );
   };
 
-  // ── Results ──────────────────────────────────────────────────────────────────
   const renderPremiumResults = () => {
     if (!analysisData) return null;
     const { platformGroups, freeShows, missingPlatformShows, monthlySavings, yearlySavings, browsingPick, beforePrice, afterPrice } = analysisData;
@@ -766,7 +773,6 @@ export default function Analyze() {
     );
   };
 
-  // ── Page ─────────────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen bg-[#07070B] text-white px-6 py-10 max-w-3xl mx-auto relative" style={{ fontFamily: 'var(--font-body)' }}>
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -774,7 +780,6 @@ export default function Analyze() {
       </div>
       <div ref={topRef} className="relative z-10" />
 
-      {/* Nav */}
       <div className="relative z-10 flex items-center justify-between mb-10">
         <Link href="/" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#22C55E] via-emerald-400 to-[#A855F7] flex items-center justify-center shadow-lg shadow-[#A855F7]/20">
