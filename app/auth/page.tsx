@@ -1,30 +1,51 @@
-'use client'
-
-import { supabase } from '@/lib/supabase'
-import Image from 'next/image'
+'use client';
+import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 
 export default function AuthPage() {
   const handleGoogleSignIn = async () => {
+    const redirectTo = typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback`
+      : '/auth/callback';
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-  }
+      options: { redirectTo },
+    });
+  };
 
   return (
-    <main className="min-h-screen bg-[#07060b] flex items-center justify-center px-4">
+    <main className="min-h-screen bg-[#07070B] flex items-center justify-center px-4 relative">
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(168,85,247,0.15),transparent_50%)]" />
+
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Sign in to SavFlix</h1>
-          <p className="text-gray-400">See exactly what you're wasting on streaming</p>
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#22C55E] via-emerald-400 to-[#A855F7] flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
+                <path d="M4 12h4l3-7 4 14 3-7h4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <span className="text-lg font-bold tracking-tight text-white" style={{ fontFamily: 'var(--font-heading)' }}>
+              Sav<span className="bg-gradient-to-r from-[#22C55E] to-[#A855F7] bg-clip-text text-transparent">Flix</span>
+            </span>
+          </Link>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm">
+        {/* Card */}
+        <div className="rounded-[28px] border border-white/10 bg-[#0D0F14] p-8 shadow-[0_20px_70px_rgba(0,0,0,0.45)]">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
+              Sign in to SavFlix
+            </h1>
+            <p className="text-white/50 text-sm">
+              Save your results and unlock your full streaming savings plan
+            </p>
+          </div>
+
           <button
             onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold py-3 px-6 rounded-xl hover:bg-gray-100 transition-colors"
+            className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold py-3.5 px-6 rounded-xl hover:bg-gray-100 transition-all hover:scale-[1.02] shadow-lg"
           >
             <svg width="20" height="20" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -35,11 +56,22 @@ export default function AuthPage() {
             Continue with Google
           </button>
 
-          <p className="text-center text-gray-500 text-sm mt-6">
-            By signing in, you agree to our terms of service
-          </p>
+          <div className="mt-6 pt-6 border-t border-white/[0.06]">
+            <p className="text-center text-white/30 text-xs">
+              By signing in you agree to our{' '}
+              <a href="#" className="text-white/50 hover:text-white underline transition-colors">terms of service</a>
+              {' '}and{' '}
+              <a href="#" className="text-white/50 hover:text-white underline transition-colors">privacy policy</a>
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 text-center">
+          <Link href="/analyze" className="text-white/40 text-sm hover:text-white/70 transition-colors">
+            ← Continue without signing in
+          </Link>
         </div>
       </div>
     </main>
-  )
+  );
 }

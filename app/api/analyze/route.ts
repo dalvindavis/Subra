@@ -1,5 +1,6 @@
 // =============================================================================
-// SAVFLIX ANALYZE API ROUTE v6
+// SAVFLIX ANALYZE API ROUTE v7
+// Anonymous scan support — no auth required
 // =============================================================================
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -20,18 +21,11 @@ const supabaseAdmin = createClient(
 
 function mapPreferences(prefs: any): Preferences | null {
   if (!prefs || !prefs.content || !prefs.audience || !prefs.priority) return null;
-  const contentMap: Record<string, ContentType> = {
-    'Series & Dramas': 'series', 'Movies': 'movies',
-    'Reality & Talk Shows': 'reality', 'A bit of everything': 'everything',
-  };
-  const audienceMap: Record<string, Audience> = {
-    'Just me': 'solo', 'Me + partner': 'partner', 'Family with kids': 'family',
-  };
-  const priorityMap: Record<string, Priority> = {
-    'Cheapest option': 'cheapest', 'Best quality content': 'quality', 'Biggest library to browse': 'library',
-  };
+  const contentMap: Record<string, ContentType>  = { 'Series & Dramas': 'series', 'Movies': 'movies', 'Reality & Talk Shows': 'reality', 'A bit of everything': 'everything' };
+  const audienceMap: Record<string, Audience>    = { 'Just me': 'solo', 'Me + partner': 'partner', 'Family with kids': 'family' };
+  const priorityMap: Record<string, Priority>    = { 'Cheapest option': 'cheapest', 'Best quality content': 'quality', 'Biggest library to browse': 'library' };
   return {
-    content: contentMap[prefs.content] || 'everything',
+    content:  contentMap[prefs.content]   || 'everything',
     audience: audienceMap[prefs.audience] || 'solo',
     priority: priorityMap[prefs.priority] || 'library',
   };
@@ -53,7 +47,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { services, shows, preferences, userId } = body;
 
-    // Check scan limit for free users
+    // Only enforce scan limit for logged-in users
     if (userId) {
       const { data: profile } = await supabaseAdmin
         .from('profiles')
@@ -71,7 +65,6 @@ export async function POST(req: NextRequest) {
             .eq('id', userId);
           profile.scan_count = 0;
         }
-
         if (profile.scan_count >= FREE_SCAN_LIMIT) {
           return NextResponse.json(
             { error: 'scan_limit_reached', scansUsed: profile.scan_count, limit: FREE_SCAN_LIMIT },
@@ -80,32 +73,33 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+    // Anonymous users: no scan limit, no tracking — one free scan per session
 
     const userPlatforms: PlatformKey[] = (services || [])
       .map((s: any) => SERVICE_TO_PLATFORM[s.name] || SERVICE_TO_PLATFORM[s])
       .filter(Boolean);
 
     const showInputs: ShowInput[] = (shows || []).map((show: any) => ({
-      name: show.name,
-      tmdbId: show.tmdbId || show.id,
-      providerIds: show.providerIds || [],
-      freeProviderIds: show.freeProviderIds || [],
-      tmdbStatus: show.tmdbStatus || show.status || 'Unknown',
-      nextEpisodeDate: show.nextEpisodeDate || null,
-      seasonCount: show.seasonCount || undefined,
-      posterPath: show.posterPath || show.poster || null,
-      seasonFinaleDate: show.seasonFinaleDate || null,
-      totalEpisodesInSeason: show.totalEpisodesInSeason || null,
-      lastEpisodeDate: show.lastEpisodeDate || null,
+      name:                  show.name,
+      tmdbId:                show.tmdbId || show.id,
+      providerIds:           show.providerIds           || [],
+      freeProviderIds:       show.freeProviderIds        || [],
+      tmdbStatus:            show.tmdbStatus || show.status || 'Unknown',
+      nextEpisodeDate:       show.nextEpisodeDate        || null,
+      seasonCount:           show.seasonCount            || undefined,
+      posterPath:            show.posterPath || show.poster || null,
+      seasonFinaleDate:      show.seasonFinaleDate       || null,
+      totalEpisodesInSeason: show.totalEpisodesInSeason  || null,
+      lastEpisodeDate:       show.lastEpisodeDate        || null,
     }));
 
     const mappedPrefs = mapPreferences(preferences);
-    const analysis = analyzeSubscriptions(userPlatforms, showInputs, mappedPrefs);
+    const analysis    = analyzeSubscriptions(userPlatforms, showInputs, mappedPrefs);
 
     const responseData = {
       platformGroups:       analysis.platformGroups,
       freeShows:            analysis.freeShows,
-      missingPlatformShows: analysis.missingPlatformShows, // ✅ was missing
+      missingPlatformShows: analysis.missingPlatformShows,
       monthlySavings:       analysis.monthlySavings,
       yearlySavings:        analysis.yearlySavings,
       browsingPick:         analysis.browsingPick,
@@ -114,6 +108,7 @@ export async function POST(req: NextRequest) {
       afterPrice:           analysis.afterPrice,
     };
 
+    // Only save to DB if user is logged in
     if (userId) {
       await Promise.all([
         supabaseAdmin.from('analyses').insert({

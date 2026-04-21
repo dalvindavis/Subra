@@ -1,121 +1,65 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --font-heading: 'Instrument Sans', sans-serif;
+  --bg-main: #07070B;
+  --bg-soft: #0D0F14;
+  --bg-panel: #12141B;
+  --bg-elevated: #171A22;
+  --purple: #A855F7;
+  --purple-deep: #6D28D9;
+  --green: #22C55E;
+  --green-soft: #86EFAC;
+  --white: #FFFFFF;
+  --text-secondary: rgba(255,255,255,0.72);
+  --text-muted: rgba(255,255,255,0.48);
+  --border: rgba(255,255,255,0.10);
+  --border-soft: rgba(255,255,255,0.06);
+  --green-soft-bg: rgba(34,197,94,0.10);
+  --purple-soft-bg: rgba(168,85,247,0.10);
+  --amber-soft-bg: rgba(245,158,11,0.10);
+  --red-soft-bg: rgba(244,63,94,0.10);
+  --font-heading: 'Sora', 'Inter', sans-serif;
   --font-body: 'DM Sans', sans-serif;
-  --purple-glow: 0 0 80px rgba(147, 51, 234, 0.15);
-  --card-glow: 0 0 30px rgba(147, 51, 234, 0.08);
 }
 
-/* Grain overlay */
-.grain::before {
+html, body {
+  background: var(--bg-main);
+  color: var(--white);
+  font-family: var(--font-body);
+}
+
+body::before {
   content: '';
   position: fixed;
   inset: 0;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
   pointer-events: none;
-  z-index: 1;
+  z-index: 9999;
 }
 
-/* Smooth scroll */
-html {
-  scroll-behavior: smooth;
+@layer utilities {
+  .glass {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .animate-fade-in-up {
+    animation: fadeInUp 0.5s ease forwards;
+  }
+  .animate-fade-in-scale {
+    animation: fadeInScale 0.5s ease forwards;
+  }
 }
 
-/* Fade-in-up animation */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeInScale {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
-}
-
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 20px rgba(147, 51, 234, 0.2); }
-  50% { box-shadow: 0 0 40px rgba(147, 51, 234, 0.4); }
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.8s ease-out forwards;
-  opacity: 0;
-}
-
-.animate-fade-in-scale {
-  animation: fadeInScale 0.8s ease-out forwards;
-  opacity: 0;
-}
-
-.delay-100 { animation-delay: 0.1s; }
-.delay-200 { animation-delay: 0.2s; }
-.delay-300 { animation-delay: 0.3s; }
-.delay-400 { animation-delay: 0.4s; }
-.delay-500 { animation-delay: 0.5s; }
-.delay-600 { animation-delay: 0.6s; }
-.delay-700 { animation-delay: 0.7s; }
-.delay-800 { animation-delay: 0.8s; }
-
-/* Glass card */
-.glass {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-/* Icon glow container */
-.icon-glow {
-  background: radial-gradient(circle at center, rgba(147, 51, 234, 0.15) 0%, transparent 70%);
-}
-
-/* Perspective mockup */
-.mockup-perspective {
-  perspective: 1200px;
-}
-
-.mockup-tilt {
-  transform: rotateX(4deg) rotateY(-2deg);
-  transition: transform 0.6s ease;
-}
-
-.mockup-tilt:hover {
-  transform: rotateX(0deg) rotateY(0deg);
-}
-
-/* Shimmer line */
-.shimmer-line {
-  background: linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.3), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 3s ease infinite;
-  height: 1px;
-}
-@import "tailwindcss";
-
-:root {
-  --background: #000000;
-  --foreground: #ededed;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
 }

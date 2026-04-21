@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 
 let PLATFORM_LOGOS: Record<string, string> = {
   netflix:          'https://image.tmdb.org/t/p/w92/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg',
@@ -31,7 +32,6 @@ function getPlatformLogo(nameOrKey: string): string | null {
   return null;
 }
 
-// Mirror of engine PROVIDER_MAP — used client-side for chip labels
 const PROVIDER_MAP: Record<number, string> = {
   8: 'netflix', 1796: 'netflix', 175: 'netflix',
   15: 'hulu', 337: 'disney-plus', 1899: 'hbo-max',
@@ -48,13 +48,6 @@ const PLATFORM_DISPLAY_NAMES: Record<string, string> = {
   'discovery-plus': 'Discovery+', crunchyroll: 'Crunchyroll', 'mgm-plus': 'MGM+',
 };
 
-const PLATFORM_PRICES: Record<string, number> = {
-  netflix: 10.99, hulu: 9.99, 'disney-plus': 9.99, 'hbo-max': 9.99,
-  peacock: 7.99, 'paramount-plus': 8.99, 'apple-tv': 12.99,
-  'prime-video': 8.99, 'amc-plus': 8.99, starz: 8.99,
-  'discovery-plus': 5.99, crunchyroll: 9.99, 'mgm-plus': 6.99,
-};
-
 function resolveGlobalPlatformKeys(providerIds: number[]): string[] {
   const seen = new Set<string>();
   const results: string[] = [];
@@ -66,46 +59,45 @@ function resolveGlobalPlatformKeys(providerIds: number[]): string[] {
 }
 
 const CANCEL_URLS: Record<string, { url: string; steps: string }> = {
-  netflix:          { url: 'https://www.netflix.com/cancelplan', steps: 'Go to netflix.com/cancelplan and click "Finish Cancellation"' },
-  hulu:             { url: 'https://secure.hulu.com/account', steps: 'Click "Cancel Your Subscription" under Your Subscription' },
-  'disney-plus':    { url: 'https://www.disneyplus.com/account', steps: 'Select your subscription, click "Cancel Subscription"' },
-  'hbo-max':        { url: 'https://www.max.com/account', steps: 'Select Subscription, click "Cancel Subscription"' },
-  peacock:          { url: 'https://www.peacocktv.com/account/plan', steps: 'Select your plan, click "Cancel Plan"' },
-  'paramount-plus': { url: 'https://www.paramountplus.com/account/', steps: 'Click "Cancel Subscription" under Subscription & Billing' },
-  'apple-tv':       { url: 'https://support.apple.com/en-us/HT202039', steps: 'Settings > your name > Subscriptions > Apple TV+' },
-  'prime-video':    { url: 'https://www.amazon.com/gp/video/settings', steps: 'Amazon account > Prime membership > "End Membership"' },
-  'amc-plus':       { url: 'https://www.amcplus.com/account', steps: 'Go to Account, click "Cancel Subscription"' },
-  starz:            { url: 'https://www.starz.com/account', steps: 'Go to Account, click "Cancel Subscription"' },
-  'discovery-plus': { url: 'https://www.discoveryplus.com/account', steps: 'Subscription > click "Cancel Subscription"' },
+  netflix:          { url: 'https://www.netflix.com/cancelplan',          steps: 'Go to netflix.com/cancelplan and click "Finish Cancellation"' },
+  hulu:             { url: 'https://secure.hulu.com/account',             steps: 'Click "Cancel Your Subscription" under Your Subscription' },
+  'disney-plus':    { url: 'https://www.disneyplus.com/account',          steps: 'Select your subscription, click "Cancel Subscription"' },
+  'hbo-max':        { url: 'https://www.max.com/account',                 steps: 'Select Subscription, click "Cancel Subscription"' },
+  peacock:          { url: 'https://www.peacocktv.com/account/plan',      steps: 'Select your plan, click "Cancel Plan"' },
+  'paramount-plus': { url: 'https://www.paramountplus.com/account/',      steps: 'Click "Cancel Subscription" under Subscription & Billing' },
+  'apple-tv':       { url: 'https://support.apple.com/en-us/HT202039',   steps: 'Settings > your name > Subscriptions > Apple TV+' },
+  'prime-video':    { url: 'https://www.amazon.com/gp/video/settings',    steps: 'Amazon account > Prime membership > "End Membership"' },
+  'amc-plus':       { url: 'https://www.amcplus.com/account',             steps: 'Go to Account, click "Cancel Subscription"' },
+  starz:            { url: 'https://www.starz.com/account',               steps: 'Go to Account, click "Cancel Subscription"' },
+  'discovery-plus': { url: 'https://www.discoveryplus.com/account',       steps: 'Subscription > click "Cancel Subscription"' },
   crunchyroll:      { url: 'https://www.crunchyroll.com/account/membership', steps: 'Account Settings > Premium Membership > "Cancel"' },
-  'mgm-plus':       { url: 'https://www.mgmplus.com/account', steps: 'Go to Account, click "Cancel Subscription"' },
+  'mgm-plus':       { url: 'https://www.mgmplus.com/account',             steps: 'Go to Account, click "Cancel Subscription"' },
 };
 
 const SERVICES = [
-  { name: "Netflix",       key: "netflix",          price: 10.99 },
-  { name: "Hulu",          key: "hulu",             price: 9.99  },
-  { name: "Disney+",       key: "disney-plus",      price: 9.99  },
-  { name: "HBO Max",       key: "hbo-max",          price: 9.99  },
-  { name: "Apple TV+",     key: "apple-tv",         price: 12.99 },
-  { name: "Peacock",       key: "peacock",          price: 7.99  },
-  { name: "Paramount+",    key: "paramount-plus",   price: 8.99  },
-  { name: "Prime Video",   key: "prime-video",      price: 8.99  },
-  { name: "AMC+",          key: "amc-plus",         price: 8.99  },
-  { name: "Starz",         key: "starz",            price: 8.99  },
-  { name: "Discovery+",    key: "discovery-plus",   price: 5.99  },
-  { name: "Crunchyroll",   key: "crunchyroll",      price: 9.99  },
-  { name: "MGM+",          key: "mgm-plus",         price: 6.99  },
+  { name: "Netflix",     key: "netflix",        price: 10.99 },
+  { name: "Hulu",        key: "hulu",           price: 9.99  },
+  { name: "Disney+",     key: "disney-plus",    price: 9.99  },
+  { name: "HBO Max",     key: "hbo-max",        price: 9.99  },
+  { name: "Apple TV+",   key: "apple-tv",       price: 12.99 },
+  { name: "Peacock",     key: "peacock",        price: 7.99  },
+  { name: "Paramount+",  key: "paramount-plus", price: 8.99  },
+  { name: "Prime Video", key: "prime-video",    price: 8.99  },
+  { name: "AMC+",        key: "amc-plus",       price: 8.99  },
+  { name: "Starz",       key: "starz",          price: 8.99  },
+  { name: "Discovery+",  key: "discovery-plus", price: 5.99  },
+  { name: "Crunchyroll", key: "crunchyroll",    price: 9.99  },
+  { name: "MGM+",        key: "mgm-plus",       price: 6.99  },
 ];
 
 const SERVICE_NAME_TO_KEY: Record<string, string> = Object.fromEntries(SERVICES.map(s => [s.name, s.key]));
-
-const BROWSE_OPTIONS    = [{ id: "series",     label: "Series & Dramas"       }, { id: "movies",   label: "Movies"                }, { id: "reality",  label: "Reality & Talk Shows" }, { id: "everything", label: "A bit of everything" }];
-const VIEWER_OPTIONS    = [{ id: "solo",       label: "Just me"               }, { id: "partner",  label: "Me + partner"          }, { id: "family",   label: "Family with kids"     }];
-const PRIORITY_OPTIONS  = [{ id: "cheapest",   label: "Cheapest option"       }, { id: "quality",  label: "Best quality content"  }, { id: "library",  label: "Biggest library to browse" }];
-const LOADING_MESSAGES  = ["Checking platform availability...", "Analyzing show airing schedules...", "Finding free alternatives...", "Calculating optimal platform combo...", "Building your savings plan..."];
+const BROWSE_OPTIONS   = [{ id: "series", label: "Series & Dramas" }, { id: "movies", label: "Movies" }, { id: "reality", label: "Reality & Talk Shows" }, { id: "everything", label: "A bit of everything" }];
+const VIEWER_OPTIONS   = [{ id: "solo", label: "Just me" }, { id: "partner", label: "Me + partner" }, { id: "family", label: "Family with kids" }];
+const PRIORITY_OPTIONS = [{ id: "cheapest", label: "Cheapest option" }, { id: "quality", label: "Best quality content" }, { id: "library", label: "Biggest library to browse" }];
+const LOADING_MESSAGES = ["Checking platform availability...", "Analyzing show airing schedules...", "Finding free alternatives...", "Calculating optimal platform combo...", "Building your savings plan..."];
 
 function SavingsCounter({ target, prefix = "$", duration = 2000 }: { target: number; prefix?: string; duration?: number }) {
-  const [val, setVal]       = useState(0);
+  const [val, setVal] = useState(0);
   const [started, setStarted] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -125,17 +117,17 @@ function SavingsCounter({ target, prefix = "$", duration = 2000 }: { target: num
 
 function makeGoogleCalUrl(platformName: string, cancelDate: string, price: number, platformKey: string): string {
   const cancelUrl = CANCEL_URLS[platformKey]?.url || '';
-  const details   = `Time to cancel ${platformName}! Save $${price}/mo ($${(price * 12).toFixed(2)}/yr).\n\nCancel here: ${cancelUrl}\n\nPowered by SavFlix`;
+  const details = `Time to cancel ${platformName}! Save $${price}/mo ($${(price * 12).toFixed(2)}/yr).\n\nCancel here: ${cancelUrl}\n\nPowered by SavFlix`;
   const d = new Date(cancelDate);
   const start = d.toISOString().split('T')[0].replace(/-/g, '');
-  const end   = new Date(d.getTime() + 86400000).toISOString().split('T')[0].replace(/-/g, '');
+  const end = new Date(d.getTime() + 86400000).toISOString().split('T')[0].replace(/-/g, '');
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(`Cancel ${platformName} subscription`)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&sf=true&output=xml`;
 }
 
 function downloadICS(platformName: string, cancelDate: string, price: number, platformKey: string) {
-  const d     = new Date(cancelDate);
+  const d = new Date(cancelDate);
   const start = d.toISOString().split('T')[0].replace(/-/g, '');
-  const end   = new Date(d.getTime() + 86400000).toISOString().split('T')[0].replace(/-/g, '');
+  const end = new Date(d.getTime() + 86400000).toISOString().split('T')[0].replace(/-/g, '');
   const cancelUrl = CANCEL_URLS[platformKey]?.url || '';
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SavFlix//EN', 'BEGIN:VEVENT',
@@ -148,8 +140,8 @@ function downloadICS(platformName: string, cancelDate: string, price: number, pl
     'END:VALARM', 'END:VEVENT', 'END:VCALENDAR',
   ].join('\r\n');
   const blob = new Blob([ics], { type: 'text/calendar' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
   a.href = url; a.download = `cancel-${platformKey}.ics`; a.click();
   URL.revokeObjectURL(url);
 }
@@ -169,32 +161,33 @@ function generateShareText(analysisData: any): string {
 }
 
 export default function Analyze() {
-  const [mounted,        setMounted]        = useState(false);
-  const [user,           setUser]           = useState<any>(null);
-  const [authLoading,    setAuthLoading]    = useState(true);
-  const [selected,       setSelected]       = useState<string[]>([]);
-  const [showQuery,      setShowQuery]      = useState("");
-  const [showResults,    setShowResults]    = useState<any[]>([]);
-  const [myShows,        setMyShows]        = useState<any[]>([]);
-  const [browseType,     setBrowseType]     = useState("");
-  const [viewerType,     setViewerType]     = useState("");
-  const [priority,       setPriority]       = useState("");
-  const [result,         setResult]         = useState("");
-  const [analysisData,   setAnalysisData]   = useState<any>(null);
-  const [loading,        setLoading]        = useState(false);
-  const [loadingMsg,     setLoadingMsg]     = useState(0);
-  const [expandedCancel, setExpandedCancel] = useState<string | null>(null);
-  const [shareMessage,   setShareMessage]   = useState("");
+  const [mounted,         setMounted]         = useState(false);
+  const [user,            setUser]            = useState<any>(null);
+  const [authLoading,     setAuthLoading]     = useState(true);
+  const [selected,        setSelected]        = useState<string[]>([]);
+  const [showQuery,       setShowQuery]       = useState("");
+  const [showResults,     setShowResults]     = useState<any[]>([]);
+  const [myShows,         setMyShows]         = useState<any[]>([]);
+  const [browseType,      setBrowseType]      = useState("");
+  const [viewerType,      setViewerType]      = useState("");
+  const [priority,        setPriority]        = useState("");
+  const [result,          setResult]          = useState("");
+  const [analysisData,    setAnalysisData]    = useState<any>(null);
+  const [loading,         setLoading]         = useState(false);
+  const [loadingMsg,      setLoadingMsg]      = useState(0);
+  const [expandedCancel,  setExpandedCancel]  = useState<string | null>(null);
+  const [shareMessage,    setShareMessage]    = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
+  // KEY CHANGE: check user but NEVER redirect — allow anonymous
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = '/auth'; }
-      else { setUser(user); setAuthLoading(false); }
+      setUser(user || null);
+      setAuthLoading(false);
     })();
   }, []);
 
@@ -203,36 +196,33 @@ export default function Analyze() {
       try {
         const res  = await fetch('/api/tmdb?logos=true');
         const data = await res.json();
-        if (data.logos) {
-          Object.entries(data.logos).forEach(([key, url]) => { PLATFORM_LOGOS[key] = url as string; });
-        }
+        if (data.logos) Object.entries(data.logos).forEach(([k, v]) => { PLATFORM_LOGOS[k] = v as string; });
       } catch (e) { console.error('Failed to fetch platform logos:', e); }
     })();
   }, []);
 
   useEffect(() => {
     if (!loading) { setLoadingMsg(0); return; }
-    const timer = setInterval(() => setLoadingMsg(p => (p + 1) % LOADING_MESSAGES.length), 1200);
-    return () => clearInterval(timer);
+    const t = setInterval(() => setLoadingMsg(p => (p + 1) % LOADING_MESSAGES.length), 1200);
+    return () => clearInterval(t);
   }, [loading]);
 
   useEffect(() => {
     if (showQuery.length < 2) { setShowResults([]); return; }
-    const timer = setTimeout(async () => {
+    const t = setTimeout(async () => {
       const res  = await fetch(`/api/tmdb?query=${encodeURIComponent(showQuery)}`);
       const data = await res.json();
       setShowResults(data.results || []);
     }, 400);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
   }, [showQuery]);
 
   if (!mounted) return null;
+
+  // Show minimal loading only for a moment while checking auth
   if (authLoading) return (
-    <main className="min-h-screen bg-[#07060b] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
-        <div className="text-gray-500 text-sm">Loading your account...</div>
-      </div>
+    <main className="min-h-screen bg-[#07070B] flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
     </main>
   );
 
@@ -253,30 +243,29 @@ export default function Analyze() {
     const allGlobalPlatformKeys = resolveGlobalPlatformKeys(data.providerIds || []);
     setMyShows(prev => [...prev, {
       ...show,
-      providerIds:            data.providerIds            || [],
-      freeProviderIds:        data.freeProviderIds        || [],
-      freeOn:                 data.freeOn                 || null,
-      matchedPlatforms:       data.matchedPlatforms       || [],
-      allGlobalPlatformKeys,                                        // ALL platforms globally
-      tmdbStatus:             data.tmdbStatus             || "Unknown",
-      nextEpisodeDate:        data.nextEpisodeDate        || null,
-      seasonCount:            data.seasonCount            || 0,
-      posterPath:             show.posterLarge || show.poster      || null,
-      seasonFinaleDate:       data.seasonFinaleDate       || null,
-      totalEpisodesInSeason:  data.totalEpisodesInSeason  || null,
-      lastEpisodeDate:        data.lastEpisodeDate        || null,
+      providerIds:           data.providerIds           || [],
+      freeProviderIds:       data.freeProviderIds        || [],
+      freeOn:                data.freeOn                 || null,
+      matchedPlatforms:      data.matchedPlatforms       || [],
+      allGlobalPlatformKeys,
+      tmdbStatus:            data.tmdbStatus             || "Unknown",
+      nextEpisodeDate:       data.nextEpisodeDate        || null,
+      seasonCount:           data.seasonCount            || 0,
+      posterPath:            show.posterLarge || show.poster || null,
+      seasonFinaleDate:      data.seasonFinaleDate       || null,
+      totalEpisodesInSeason: data.totalEpisodesInSeason  || null,
+      lastEpisodeDate:       data.lastEpisodeDate        || null,
     }]);
     setShowQuery(""); setShowResults([]);
   };
 
   const removeShow = (id: number) => setMyShows(prev => prev.filter(s => s.id !== id));
 
-  // Uses global platforms so chip always shows where the show actually is
   const getPlatformLabel = (show: any): { text: string; isFree: boolean; isMissing: boolean } => {
     if (show.freeOn) return { text: `FREE w/ads on ${show.freeOn.name}`, isFree: true, isMissing: false };
     const selectedKeys = selected.map(name => SERVICE_NAME_TO_KEY[name]).filter(Boolean);
     if (show.allGlobalPlatformKeys?.length > 0) {
-      const names = show.allGlobalPlatformKeys.map((k: string) => PLATFORM_DISPLAY_NAMES[k] || k);
+      const names       = show.allGlobalPlatformKeys.map((k: string) => PLATFORM_DISPLAY_NAMES[k] || k);
       const anySelected = show.allGlobalPlatformKeys.some((k: string) => selectedKeys.includes(k));
       return { text: names.join(", "), isFree: false, isMissing: !anySelected };
     }
@@ -295,37 +284,35 @@ export default function Analyze() {
         if (diff <= 30) return { text: "Currently Airing", color: "text-green-400" };
         return { text: "New Season Coming", color: "text-blue-400" };
       }
-      return { text: s === "In Production" ? "New Season Coming" : "Between Seasons", color: s === "In Production" ? "text-yellow-400" : "text-amber-400" };
+      return s === "In Production"
+        ? { text: "New Season Coming", color: "text-yellow-400" }
+        : { text: "Between Seasons",   color: "text-amber-400"  };
     }
-    if (s === "Ended")   return { text: "Ended",    color: "text-gray-500" };
+    if (s === "Ended")    return { text: "Ended",    color: "text-gray-500" };
     if (s === "Canceled") return { text: "Canceled", color: "text-red-400"  };
-    if (s === "Planned") return { text: "Upcoming", color: "text-blue-400"  };
+    if (s === "Planned")  return { text: "Upcoming", color: "text-blue-400" };
     return { text: s, color: "text-gray-500" };
   };
 
-  const handleSignOut = async () => { await supabase.auth.signOut(); window.location.href = '/auth'; };
+  const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); };
 
   const handleAnalyze = async () => {
     if (!canAnalyze) return;
     setLoading(true); setResult(""); setAnalysisData(null);
-    const services    = selected.map(name => ({ name, price: SERVICES.find(s => s.name === name)?.price || 0 }));
-    const shows       = myShows.map(s => ({
+    const services = selected.map(name => ({ name, price: SERVICES.find(s => s.name === name)?.price || 0 }));
+    const shows    = myShows.map(s => ({
       name: s.name, tmdbId: s.id,
-      providerIds:           s.providerIds           || [],
-      freeProviderIds:       s.freeProviderIds        || [],
-      tmdbStatus:            s.tmdbStatus            || "Unknown",
-      nextEpisodeDate:       s.nextEpisodeDate        || null,
-      seasonCount:           s.seasonCount           || 0,
-      posterPath:            s.posterPath || s.poster || null,
-      seasonFinaleDate:      s.seasonFinaleDate       || null,
-      totalEpisodesInSeason: s.totalEpisodesInSeason  || null,
-      lastEpisodeDate:       s.lastEpisodeDate        || null,
+      providerIds: s.providerIds || [], freeProviderIds: s.freeProviderIds || [],
+      tmdbStatus: s.tmdbStatus || "Unknown", nextEpisodeDate: s.nextEpisodeDate || null,
+      seasonCount: s.seasonCount || 0, posterPath: s.posterPath || s.poster || null,
+      seasonFinaleDate: s.seasonFinaleDate || null,
+      totalEpisodesInSeason: s.totalEpisodesInSeason || null,
+      lastEpisodeDate: s.lastEpisodeDate || null,
     }));
     const preferences = { content: browseType, audience: viewerType, priority };
     try {
       const res  = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ services, shows, preferences, userId: user?.id || null }),
       });
       const data = await res.json();
@@ -350,22 +337,25 @@ export default function Analyze() {
     else { await navigator.clipboard.writeText(text); setShareMessage("Copied to clipboard!"); setTimeout(() => setShareMessage(""), 2000); }
   };
 
+  // KEY CHANGE: anonymous users go straight to Stripe, no auth gate
   const handleCheckout = async (plan: 'basic' | 'lifetime') => {
     setCheckoutLoading(plan);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const priceId = plan === 'basic' ? process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
+      const priceId = plan === 'basic'
+        ? process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID
+        : process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID;
       const res  = await fetch('/api/create-checkout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ priceId, plan, userId: user?.id || null, email: user?.email || null }),
       });
       const data = await res.json();
-      if (data.url) { window.location.href = data.url; } else { alert('Something went wrong. Please try again.'); }
+      if (data.url) { window.location.href = data.url; }
+      else { alert('Something went wrong. Please try again.'); }
     } catch { alert('Something went wrong. Please try again.'); }
     finally { setCheckoutLoading(null); }
   };
 
-  // ─── Sub-components ────────────────────────────────────────────────────────
+  // ── Components ───────────────────────────────────────────────────────────────
 
   const PlatformIcon = ({ name, platformKey, color, size = 'sm' }: { name: string; platformKey?: string; color: string; size?: 'sm' | 'md' | 'lg' }) => {
     const logo = getPlatformLogo(name) || (platformKey ? getPlatformLogo(platformKey) : null);
@@ -376,43 +366,43 @@ export default function Analyze() {
   };
 
   const getShowActionLabel = (show: any): { text: string; color: string } | null => {
-    if (show.decision === 'free-elsewhere' && show.freeOn)             return { text: `Watch free on ${show.freeOn.name} instead`,   color: 'text-emerald-400' };
-    if (show.decision === 'binge-and-cancel' && show.status === 'ended')          return { text: 'Binge this — series has ended',            color: 'text-yellow-400' };
-    if (show.decision === 'binge-and-cancel' && show.status === 'between-seasons') return { text: 'Binge and catch up — between seasons',      color: 'text-yellow-400' };
-    if (show.decision === 'binge-and-cancel' && show.status === 'upcoming')        return { text: 'Binge now — new season coming soon',        color: 'text-blue-400'   };
+    if (show.decision === 'free-elsewhere' && show.freeOn)              return { text: `Watch free on ${show.freeOn.name} instead`,  color: 'text-emerald-400' };
+    if (show.decision === 'binge-and-cancel' && show.status === 'ended')           return { text: 'Binge this — series has ended',           color: 'text-yellow-400' };
+    if (show.decision === 'binge-and-cancel' && show.status === 'between-seasons') return { text: 'Binge and catch up — between seasons',     color: 'text-yellow-400' };
+    if (show.decision === 'binge-and-cancel' && show.status === 'upcoming')        return { text: 'Binge now — new season coming soon',       color: 'text-blue-400'   };
     return null;
   };
 
-  // ─── Scan limit wall ───────────────────────────────────────────────────────
-
+  // ── Scan limit wall ──────────────────────────────────────────────────────────
   const renderScanLimitWall = () => (
     <div className="relative z-10 mt-16 text-center">
-      <div className="border border-purple-500/25 bg-white/[0.02] rounded-2xl p-8 max-w-md mx-auto">
+      <div className="border border-[#A855F7]/25 bg-white/[0.02] rounded-[28px] p-8 max-w-md mx-auto">
         <div className="text-5xl mb-5">🔒</div>
         <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Free Scans Used Up</h2>
-        <p className="text-gray-400 text-sm mb-2">You've used all 3 free analyses this month.</p>
-        <p className="text-gray-500 text-sm mb-8">Upgrade to run unlimited scans, save your results, and get cancel date reminders.</p>
+        <p className="text-white/50 text-sm mb-2">You've used all 3 free analyses this month.</p>
+        <p className="text-white/40 text-sm mb-8">Upgrade to run unlimited scans, save your results, and get cancel date reminders.</p>
         <div className="flex flex-col gap-3">
-          <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3.5 rounded-full text-sm font-bold hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] transition-all shadow-lg shadow-amber-600/25 disabled:opacity-60">
+          <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null}
+            className="rounded-2xl bg-gradient-to-r from-[#22C55E] to-[#A855F7] px-6 py-3.5 text-sm font-bold text-white shadow-[0_12px_40px_rgba(168,85,247,0.28)] hover:scale-[1.02] transition-all disabled:opacity-60">
             {checkoutLoading === 'lifetime' ? 'Redirecting...' : '⭐ $39 Lifetime — Unlimited Scans Forever'}
           </button>
-          <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null} className="bg-purple-600 text-white px-6 py-3.5 rounded-full text-sm font-semibold hover:bg-purple-500 hover:scale-[1.02] transition-all shadow-lg shadow-purple-600/25 disabled:opacity-60">
+          <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null}
+            className="rounded-2xl border border-[#A855F7]/40 bg-[#A855F7]/10 px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#A855F7]/20 hover:scale-[1.02] transition-all disabled:opacity-60">
             {checkoutLoading === 'basic' ? 'Redirecting...' : 'Get Basic — $2.99/mo'}
           </button>
-          <button onClick={handleReset} className="text-gray-600 text-sm hover:text-gray-400 transition-colors">Back to start</button>
+          <button onClick={handleReset} className="text-white/30 text-sm hover:text-white/60 transition-colors">Back to start</button>
         </div>
       </div>
     </div>
   );
 
-  // ─── Platform card ─────────────────────────────────────────────────────────
-
+  // ── Platform card ────────────────────────────────────────────────────────────
   const renderPlatformCard = (group: any, index: number) => {
     const decisionColors: Record<string, { border: string; bg: string; badge: string; badgeText: string }> = {
-      keep:               { border: 'border-green-500/40',  bg: 'bg-green-500/5',  badge: 'bg-green-500/20',  badgeText: 'text-green-400'  },
-      'keep-for-browsing':{ border: 'border-blue-500/40',   bg: 'bg-blue-500/5',   badge: 'bg-blue-500/20',   badgeText: 'text-blue-400'   },
-      'binge-and-cancel': { border: 'border-yellow-500/40', bg: 'bg-yellow-500/5', badge: 'bg-yellow-500/20', badgeText: 'text-yellow-400' },
-      cut:                { border: 'border-red-500/40',    bg: 'bg-red-500/5',    badge: 'bg-red-500/20',    badgeText: 'text-red-400'    },
+      keep:                { border: 'border-emerald-500/30', bg: 'bg-emerald-500/5',  badge: 'bg-emerald-500/20', badgeText: 'text-emerald-400' },
+      'keep-for-browsing': { border: 'border-blue-500/30',   bg: 'bg-blue-500/5',     badge: 'bg-blue-500/20',   badgeText: 'text-blue-400'    },
+      'binge-and-cancel':  { border: 'border-amber-500/30',  bg: 'bg-amber-500/5',    badge: 'bg-amber-500/20',  badgeText: 'text-amber-400'   },
+      cut:                 { border: 'border-rose-500/30',   bg: 'bg-rose-500/5',     badge: 'bg-rose-500/20',   badgeText: 'text-rose-400'    },
     };
     const decisionLabels: Record<string, string> = {
       keep: '✅ Keep', 'keep-for-browsing': '📺 Keep for Browsing', 'binge-and-cancel': '⏱️ Binge & Cancel', cut: '✂️ Cut',
@@ -436,66 +426,60 @@ export default function Analyze() {
       : group.reason;
 
     return (
-      <div key={group.platformKey} className={`border ${colors.border} ${colors.bg} rounded-xl p-5 mb-3`} style={{ animationDelay: `${index * 100}ms` }}>
-        {/* Header */}
+      <div key={group.platformKey} className={`border ${colors.border} ${colors.bg} rounded-[24px] p-5 mb-3`}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <PlatformIcon name={group.name} platformKey={group.platformKey} color={group.color} size="md" />
             <span className="font-semibold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{group.name}</span>
-            <span className="text-gray-500 text-sm">${group.price}/mo</span>
+            <span className="text-white/40 text-sm">${group.price}/mo</span>
           </div>
           <span className={`text-xs px-3 py-1 rounded-full ${colors.badge} ${colors.badgeText}`}>{decisionLabels[group.decision]}</span>
         </div>
+        <div className={`text-sm mb-2 ${group.decision === 'cut' && group.shows.length === 0 ? 'text-rose-400 font-medium' : 'text-white/60'}`}>{cutReason}</div>
 
-        {/* Reason */}
-        <div className={`text-sm mb-2 ${group.decision === 'cut' && group.shows.length === 0 ? 'text-red-400 font-medium' : 'text-gray-400'}`}>{cutReason}</div>
-
-        {/* Keep cancel date reminder */}
         {group.cancelDateLabel && group.decision === 'keep' && (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-2">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-2">
             <div className="text-amber-400 text-sm font-medium">📅 {group.cancelDateLabel}</div>
-            <div className="text-amber-400/70 text-xs mb-2">Save ${group.price}/mo (${(group.price * 12).toFixed(2)}/yr) after the season ends</div>
+            <div className="text-amber-400/60 text-xs mb-2">Save ${group.price}/mo (${(group.price * 12).toFixed(2)}/yr) after the season ends</div>
             <div className="flex gap-2 mt-1">
-              <a href={makeGoogleCalUrl(group.name, group.cancelDate, group.price, group.platformKey)} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition inline-flex items-center gap-1">📆 Google Calendar</a>
-              <button onClick={() => downloadICS(group.name, group.cancelDate, group.price, group.platformKey)} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition inline-flex items-center gap-1">🍎 Apple Calendar</button>
+              <a href={makeGoogleCalUrl(group.name, group.cancelDate, group.price, group.platformKey)} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition">📆 Google Calendar</a>
+              <button onClick={() => downloadICS(group.name, group.cancelDate, group.price, group.platformKey)} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition">🍎 Apple Calendar</button>
             </div>
           </div>
         )}
 
-        {/* Binge cancel date reminder */}
         {group.decision === 'binge-and-cancel' && latestBingeCancelLabel && latestBingeCancelDate && (
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mb-2">
-            <div className="text-yellow-400 text-sm font-medium">📅 {latestBingeCancelLabel}</div>
-            <div className="text-yellow-400/70 text-xs mb-2">Save ${group.price}/mo (${(group.price * 12).toFixed(2)}/yr)</div>
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-2">
+            <div className="text-amber-400 text-sm font-medium">📅 {latestBingeCancelLabel}</div>
+            <div className="text-amber-400/60 text-xs mb-2">Save ${group.price}/mo (${(group.price * 12).toFixed(2)}/yr)</div>
             <div className="flex gap-2 mt-1">
-              <a href={makeGoogleCalUrl(group.name, latestBingeCancelDate, group.price, group.platformKey)} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition inline-flex items-center gap-1">📆 Google Calendar</a>
-              <button onClick={() => downloadICS(group.name, latestBingeCancelDate, group.price, group.platformKey)} className="text-xs px-3 py-1.5 rounded-lg bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition inline-flex items-center gap-1">🍎 Apple Calendar</button>
+              <a href={makeGoogleCalUrl(group.name, latestBingeCancelDate, group.price, group.platformKey)} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition">📆 Google Calendar</a>
+              <button onClick={() => downloadICS(group.name, latestBingeCancelDate, group.price, group.platformKey)} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition">🍎 Apple Calendar</button>
             </div>
           </div>
         )}
 
-        {group.bingeEstimate && <div className="text-yellow-400/80 text-xs mb-2">Estimated binge time: {group.bingeEstimate}</div>}
-        {group.decision === 'cut' && <div className="text-red-400/80 text-xs mb-2">Saves ${group.price}/mo (${(group.price * 12).toFixed(2)}/yr)</div>}
+        {group.bingeEstimate && <div className="text-amber-400/70 text-xs mb-2">Estimated binge time: {group.bingeEstimate}</div>}
+        {group.decision === 'cut' && <div className="text-rose-400/70 text-xs mb-2">Saves ${group.price}/mo (${(group.price * 12).toFixed(2)}/yr)</div>}
 
-        {/* Shows list */}
         {group.shows.length > 0 && (
           <div className="mt-3 space-y-2">
             {group.shows.map((show: any, i: number) => {
               const actionLabel = getShowActionLabel(show);
               return (
-                <div key={i} className="flex items-start gap-3 bg-white/5 border border-white/10 rounded-lg p-2.5">
-                  {show.posterPath && <img src={show.posterPath} alt={show.name} className="w-10 h-14 rounded object-cover flex-shrink-0" />}
+                <div key={i} className="flex items-start gap-3 bg-white/[0.04] border border-white/[0.06] rounded-xl p-2.5">
+                  {show.posterPath && <img src={show.posterPath} alt={show.name} className="w-10 h-14 rounded-lg object-cover flex-shrink-0" />}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-white">{show.name}</span>
-                      <span className="text-xs text-gray-500">({show.statusLabel})</span>
+                      <span className="text-xs text-white/40">({show.statusLabel})</span>
                     </div>
                     {actionLabel && <div className={`text-xs mt-0.5 ${actionLabel.color}`}>{show.decision === 'free-elsewhere' ? '🆓' : '⏱️'} {actionLabel.text}</div>}
                     {show.cancelDateLabel && <div className="text-xs text-amber-400 mt-0.5">📅 {show.cancelDateLabel}</div>}
                     {show.allPlatforms?.length > 1 && (
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-white/40 mt-1">
                         Available on {show.allPlatforms.map((p: any) => p.name).join(", ")}
-                        {show.chosenReason && <span className="text-purple-400"> — {show.chosenReason}</span>}
+                        {show.chosenReason && <span className="text-[#A855F7]"> — {show.chosenReason}</span>}
                       </div>
                     )}
                   </div>
@@ -505,16 +489,15 @@ export default function Analyze() {
           </div>
         )}
 
-        {/* How to cancel */}
         {(group.decision === 'cut' || group.decision === 'binge-and-cancel' || (group.decision === 'keep' && group.cancelDateLabel)) && cancelInfo && (
-          <div className="mt-3 border-t border-white/5 pt-2">
-            <button onClick={() => setExpandedCancel(isExpanded ? null : group.platformKey)} className="text-xs text-gray-500 hover:text-gray-300 transition flex items-center gap-1">
+          <div className="mt-3 border-t border-white/[0.06] pt-2">
+            <button onClick={() => setExpandedCancel(isExpanded ? null : group.platformKey)} className="text-xs text-white/30 hover:text-white/60 transition flex items-center gap-1">
               <span>{isExpanded ? '▾' : '▸'}</span> How to cancel {group.name}
             </button>
             {isExpanded && (
-              <div className="mt-2 bg-white/5 rounded-lg px-3 py-2">
-                <div className="text-xs text-gray-400 mb-2">{cancelInfo.steps}</div>
-                <a href={cancelInfo.url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-400 hover:text-purple-300 transition underline">Go to {group.name} cancellation page →</a>
+              <div className="mt-2 bg-white/[0.03] rounded-xl px-3 py-2">
+                <div className="text-xs text-white/50 mb-2">{cancelInfo.steps}</div>
+                <a href={cancelInfo.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#A855F7] hover:text-[#C084FC] transition underline">Go to {group.name} cancellation page →</a>
               </div>
             )}
           </div>
@@ -523,75 +506,65 @@ export default function Analyze() {
     );
   };
 
-  // ─── Missing platform section (FREE tier: shows problem, locks solution) ──
-
+  // ── Missing shows section ────────────────────────────────────────────────────
   const renderMissingShows = (missingPlatformShows: any[]) => {
     if (!missingPlatformShows?.length) return null;
-
-    // Group by missing platform key for cleaner display
-    const byPlatform: Record<string, { platformName: string; price: number; shows: any[] }> = {};
+    const byPlatform: Record<string, { platformName: string; price: number; platformKey: string; shows: any[] }> = {};
     for (const show of missingPlatformShows) {
       if (!show.missingPlatform) continue;
       const pk = show.missingPlatform.platformKey;
-      if (!byPlatform[pk]) byPlatform[pk] = { platformName: show.missingPlatform.name, price: show.missingPlatform.price, shows: [] };
+      if (!byPlatform[pk]) byPlatform[pk] = { platformName: show.missingPlatform.name, price: show.missingPlatform.price, platformKey: pk, shows: [] };
       byPlatform[pk].shows.push(show);
     }
-
     return (
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-1 text-orange-400" style={{ fontFamily: 'var(--font-heading)' }}>⚠️ Shows Not on Your Plan</h2>
-        <p className="text-gray-500 text-xs mb-3">You searched for shows that aren't on any of your current subscriptions. Here's where they actually stream.</p>
-
+        <h2 className="text-lg font-semibold mb-1 text-amber-400" style={{ fontFamily: 'var(--font-heading)' }}>⚠️ Shows Not on Your Plan</h2>
+        <p className="text-white/40 text-xs mb-3">You added shows that aren't on any of your current subscriptions.</p>
         {Object.entries(byPlatform).map(([pk, group]) => (
-          <div key={pk} className="border border-orange-500/25 bg-orange-500/5 rounded-xl p-5 mb-3">
-            {/* Platform header */}
+          <div key={pk} className="border border-amber-500/20 bg-amber-500/5 rounded-[24px] p-5 mb-3">
             <div className="flex items-center gap-3 mb-3">
-              <PlatformIcon name={group.platformName} platformKey={pk} color="#f97316" size="md" />
+              <PlatformIcon name={group.platformName} platformKey={pk} color="#f59e0b" size="md" />
               <div>
                 <span className="text-white font-semibold text-sm" style={{ fontFamily: 'var(--font-heading)' }}>{group.platformName}</span>
-                <span className="text-gray-400 text-sm ml-2">${group.price}/mo</span>
+                <span className="text-white/40 text-sm ml-2">${group.price}/mo</span>
               </div>
             </div>
-
-            {/* Shows on this platform */}
             <div className="space-y-2 mb-4">
               {group.shows.map((show: any, i: number) => (
-                <div key={i} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-lg p-2.5">
-                  {show.posterPath && <img src={show.posterPath} alt={show.name} className="w-8 h-12 rounded object-cover flex-shrink-0" />}
+                <div key={i} className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.06] rounded-xl p-2.5">
+                  {show.posterPath && <img src={show.posterPath} alt={show.name} className="w-8 h-12 rounded-lg object-cover flex-shrink-0" />}
                   <div>
                     <div className="text-sm font-medium text-white">{show.name}</div>
-                    <div className="text-xs text-gray-500">{show.statusLabel}</div>
+                    <div className="text-xs text-white/40">{show.statusLabel}</div>
                   </div>
                 </div>
               ))}
             </div>
-
-            {/* FREE: show the problem clearly */}
-            <div className="bg-black/20 rounded-lg p-3 mb-3">
-              <div className="text-orange-300 text-sm font-medium mb-1">
+            <div className="bg-black/20 rounded-xl p-3 mb-3">
+              <div className="text-amber-300 text-sm font-medium mb-1">
                 To watch {group.shows.map((s: any) => s.name).join(" & ")}, you need {group.platformName} — ${group.price}/mo
               </div>
-              <div className="text-gray-500 text-xs">
+              <div className="text-white/40 text-xs">
                 Adding {group.platformName} would bring your total to <span className="text-white">${(totalMonthly + group.price).toFixed(2)}/mo</span>
               </div>
             </div>
-
-            {/* PREMIUM LOCKED: the recommendation */}
-            <div className="border border-purple-500/30 bg-purple-500/5 rounded-lg p-3">
+            <div className="border border-[#A855F7]/25 bg-[#A855F7]/5 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-lg">🔒</span>
-                <span className="text-purple-300 text-sm font-semibold">Premium Recommendation</span>
+                <span className="text-[#C084FC] text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Premium Recommendation</span>
               </div>
-              <div className="text-gray-400 text-xs mb-3 space-y-1">
-                <div>• Is adding {group.platformName} worth it based on your full spend?</div>
-                <div>• Could you replace one of your current subscriptions with {group.platformName} and save money?</div>
+              <div className="text-white/40 text-xs mb-3 space-y-1.5">
+                <div>• Is adding {group.platformName} worth it based on your full monthly spend?</div>
+                <div>• Could you replace a current subscription with {group.platformName} and pay less?</div>
                 <div>• What's the cheapest combo that covers all your shows?</div>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null} className="bg-purple-600 text-white px-4 py-2 rounded-full text-xs font-semibold hover:bg-purple-500 transition-all disabled:opacity-60">
+                <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null}
+                  className="rounded-2xl border border-[#A855F7]/40 bg-[#A855F7]/10 px-4 py-2 text-xs font-semibold text-white hover:bg-[#A855F7]/20 transition-all disabled:opacity-60">
                   {checkoutLoading === 'basic' ? 'Redirecting...' : 'Unlock for $2.99/mo'}
                 </button>
-                <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-full text-xs font-bold hover:from-amber-400 hover:to-orange-400 transition-all disabled:opacity-60">
+                <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null}
+                  className="rounded-2xl bg-gradient-to-r from-[#22C55E] to-[#A855F7] px-4 py-2 text-xs font-bold text-white hover:scale-[1.02] transition-all disabled:opacity-60">
                   {checkoutLoading === 'lifetime' ? 'Redirecting...' : '$39 Lifetime'}
                 </button>
               </div>
@@ -602,32 +575,30 @@ export default function Analyze() {
     );
   };
 
-  // ─── ROI upsell block ──────────────────────────────────────────────────────
-
+  // ── ROI upsell ───────────────────────────────────────────────────────────────
   const renderUpsell = (yearlySavings: number) => {
     const annualSavings    = Math.round(yearlySavings * 100) / 100;
     const basicAnnualCost  = 35.88;
     const netAnnualSavings = Math.max(0, annualSavings - basicAnnualCost);
     const roiMultiple      = annualSavings > 0 ? Math.round(annualSavings / basicAnnualCost) : 0;
-    const hasSavings       = annualSavings > 0;
 
-    if (hasSavings) return (
-      <div className="mb-6 border border-purple-500/30 rounded-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/10 p-6">
-          <div className="text-xs text-purple-400 font-medium uppercase tracking-wider mb-2" style={{ fontFamily: 'var(--font-heading)' }}>You are leaving money on the table</div>
+    if (annualSavings > 0) return (
+      <div className="mb-6 rounded-[28px] border border-[#A855F7]/25 overflow-hidden">
+        <div className="bg-gradient-to-r from-[#0E1320] to-[#130B22] p-6">
+          <div className="text-xs text-[#C084FC] font-medium uppercase tracking-[0.24em] mb-2" style={{ fontFamily: 'var(--font-heading)' }}>You are leaving money on the table</div>
           <div className="text-xl font-bold text-white mb-1" style={{ fontFamily: 'var(--font-heading)' }}>This just saved you <SavingsCounter target={yearlySavings} prefix="$" />/year.</div>
-          <div className="text-gray-400 text-sm mb-1">SavFlix costs less than 1% of your savings.</div>
-          <div className="text-gray-500 text-sm mb-4">But subscriptions change every month. Prices go up. Shows move platforms. Seasons end. Without monitoring, the average person loses 60% of their savings within 3 months.</div>
-          <div className="bg-black/30 rounded-xl p-4 mb-4">
-            <div className="flex items-center justify-between mb-2"><span className="text-gray-400 text-sm">Your annual savings</span><span className="text-green-400 font-bold">${annualSavings.toFixed(2)}</span></div>
-            <div className="flex items-center justify-between mb-2"><span className="text-gray-400 text-sm">SavFlix Basic cost</span><span className="text-gray-300 font-medium">-$35.88/yr</span></div>
+          <div className="text-white/50 text-sm mb-1">SavFlix costs less than 1% of your savings.</div>
+          <div className="text-white/40 text-sm mb-4">Subscriptions change every month. Prices go up. Shows move platforms. Without monitoring, the average person loses 60% of their savings within 3 months.</div>
+          <div className="bg-black/30 rounded-[20px] p-4 mb-4">
+            <div className="flex items-center justify-between mb-2"><span className="text-white/50 text-sm">Your annual savings</span><span className="text-[#22C55E] font-bold">${annualSavings.toFixed(2)}</span></div>
+            <div className="flex items-center justify-between mb-2"><span className="text-white/50 text-sm">SavFlix Basic cost</span><span className="text-white/70 font-medium">-$35.88/yr</span></div>
             <div className="border-t border-white/10 pt-2 flex items-center justify-between">
               <span className="text-white text-sm font-medium">You still save</span>
-              <span className="text-green-400 font-bold text-lg">${netAnnualSavings.toFixed(2)}/yr</span>
+              <span className="text-[#22C55E] font-bold text-lg">${netAnnualSavings.toFixed(2)}/yr</span>
             </div>
-            <div className="text-xs text-gray-500 mt-2">That is a {roiMultiple}x return on a $2.99/mo investment</div>
+            <div className="text-xs text-white/30 mt-2">That is a {roiMultiple}x return on a $2.99/mo investment</div>
           </div>
-          <div className="text-gray-300 text-sm font-medium mb-3">What you get:</div>
+          <div className="text-white/70 text-sm font-medium mb-3">What you get:</div>
           <div className="space-y-2 mb-5">
             {[
               "Automatic cancel date reminders — we email you 3 days before so you never pay for a month you do not need",
@@ -636,42 +607,51 @@ export default function Analyze() {
               "Savings dashboard — see your running total of money saved, month over month",
               "Free platform monitoring — we check weekly if your shows move to Tubi, Pluto TV, or Roku Channel",
             ].map((item, i) => (
-              <div key={i} className="flex items-start gap-2"><span className="text-green-400 text-sm mt-0.5">✓</span><span className="text-gray-300 text-sm">{item}</span></div>
+              <div key={i} className="flex items-start gap-2">
+                <span className="text-[#22C55E] text-sm mt-0.5">✓</span>
+                <span className="text-white/60 text-sm">{item}</span>
+              </div>
             ))}
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null} className="bg-purple-600 text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-purple-500 hover:scale-[1.02] transition-all shadow-lg shadow-purple-600/25 disabled:opacity-60">
+            <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null}
+              className="rounded-2xl border border-[#A855F7]/40 bg-[#A855F7]/10 px-6 py-3 text-sm font-semibold text-white hover:bg-[#A855F7]/20 hover:scale-[1.02] transition-all disabled:opacity-60">
               {checkoutLoading === 'basic' ? 'Redirecting...' : 'Get SavFlix Basic — $2.99/mo'}
             </button>
-            <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-full text-sm font-bold hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] transition-all shadow-lg shadow-amber-600/25 disabled:opacity-60">
+            <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null}
+              className="rounded-2xl bg-gradient-to-r from-[#22C55E] to-[#A855F7] px-6 py-3 text-sm font-bold text-white shadow-[0_12px_40px_rgba(168,85,247,0.24)] hover:scale-[1.02] transition-all disabled:opacity-60">
               {checkoutLoading === 'lifetime' ? 'Redirecting...' : '$39 Lifetime — Pay Once'}
             </button>
           </div>
-          <div className="text-xs text-gray-600 mt-3">Cancel anytime. No commitment. Your savings pay for it {roiMultiple} times over.</div>
+          <div className="text-xs text-white/20 mt-3">Cancel anytime. No commitment. Your savings pay for it {roiMultiple} times over.</div>
         </div>
       </div>
     );
 
-    // $0 savings — softer CTA
     return (
-      <div className="mb-6 border border-purple-500/20 rounded-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-600/10 to-blue-600/5 p-6">
+      <div className="mb-6 rounded-[28px] border border-white/10 overflow-hidden">
+        <div className="bg-gradient-to-r from-[#0E1320] to-[#130B22] p-6">
           <div className="text-lg font-bold text-white mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Keep your plan optimized over time</div>
-          <div className="text-gray-400 text-sm mb-4">Your current setup looks right for your shows. But prices change, shows move platforms, and seasons end. SavFlix monitors all of it so you never overpay.</div>
+          <div className="text-white/50 text-sm mb-4">Your current setup looks right for your shows. But prices change, shows move platforms, and seasons end. SavFlix monitors all of it so you never overpay.</div>
           <div className="space-y-2 mb-5">
             {[
               "Cancel date reminders — know exactly when to cancel after a season ends",
               "Show movement alerts — get notified when your shows switch platforms",
               "Monthly re-scans — we catch price changes and update your plan automatically",
             ].map((item, i) => (
-              <div key={i} className="flex items-start gap-2"><span className="text-green-400 text-sm mt-0.5">✓</span><span className="text-gray-300 text-sm">{item}</span></div>
+              <div key={i} className="flex items-start gap-2">
+                <span className="text-[#22C55E] text-sm mt-0.5">✓</span>
+                <span className="text-white/60 text-sm">{item}</span>
+              </div>
             ))}
           </div>
           <div className="flex flex-wrap gap-3">
-            <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null} className="bg-purple-600 text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-purple-500 hover:scale-[1.02] transition-all shadow-lg shadow-purple-600/25 disabled:opacity-60">
+            <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null}
+              className="rounded-2xl border border-[#A855F7]/40 bg-[#A855F7]/10 px-6 py-3 text-sm font-semibold text-white hover:bg-[#A855F7]/20 hover:scale-[1.02] transition-all disabled:opacity-60">
               {checkoutLoading === 'basic' ? 'Redirecting...' : 'Get SavFlix Basic — $2.99/mo'}
             </button>
-            <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-full text-sm font-bold hover:from-amber-400 hover:to-orange-400 hover:scale-[1.02] transition-all shadow-lg shadow-amber-600/25 disabled:opacity-60">
+            <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null}
+              className="rounded-2xl bg-gradient-to-r from-[#22C55E] to-[#A855F7] px-6 py-3 text-sm font-bold text-white shadow-[0_12px_40px_rgba(168,85,247,0.24)] hover:scale-[1.02] transition-all disabled:opacity-60">
               {checkoutLoading === 'lifetime' ? 'Redirecting...' : '$39 Lifetime — Pay Once'}
             </button>
           </div>
@@ -680,8 +660,7 @@ export default function Analyze() {
     );
   };
 
-  // ─── Main results renderer ─────────────────────────────────────────────────
-
+  // ── Results ──────────────────────────────────────────────────────────────────
   const renderPremiumResults = () => {
     if (!analysisData) return null;
     const { platformGroups, freeShows, missingPlatformShows, monthlySavings, yearlySavings, browsingPick, beforePrice, afterPrice } = analysisData;
@@ -693,96 +672,89 @@ export default function Analyze() {
 
     return (
       <div className="mt-4">
-        {/* Title */}
         <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Your Results</h1>
-        <div className="text-gray-400 text-sm mb-6">Based on {selected.length} subscription{selected.length !== 1 ? 's' : ''}{myShows.length > 0 ? ` and ${myShows.length} show${myShows.length !== 1 ? 's' : ''}` : ""}</div>
+        <div className="text-white/50 text-sm mb-6">Based on {selected.length} subscription{selected.length !== 1 ? 's' : ''}{myShows.length > 0 ? ` and ${myShows.length} show${myShows.length !== 1 ? 's' : ''}` : ""}</div>
 
-        {/* Optimized plan summary card */}
-        <div className="glass border border-purple-500/25 rounded-2xl p-6 mb-8" style={{ boxShadow: '0 0 60px rgba(147, 51, 234, 0.1)' }}>
-          <div className="text-purple-300 text-sm font-medium mb-3" style={{ fontFamily: 'var(--font-heading)' }}>Your Optimized Plan</div>
+        {/* Optimized plan card */}
+        <div className="rounded-[28px] border border-[#A855F7]/25 bg-[#0D0F14] p-6 mb-8 shadow-[0_0_60px_rgba(168,85,247,0.08)]">
+          <div className="text-[#C084FC] text-xs font-medium uppercase tracking-[0.24em] mb-3" style={{ fontFamily: 'var(--font-heading)' }}>Your Optimized Plan</div>
           {keepGroups.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
               {keepGroups.map((g: any) => (
-                <span key={g.platformKey} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white" style={{ backgroundColor: g.color + '33', border: `1px solid ${g.color}55` }}>
+                <span key={g.platformKey} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white" style={{ backgroundColor: g.color + '22', border: `1px solid ${g.color}44` }}>
                   <PlatformIcon name={g.name} platformKey={g.platformKey} color={g.color} size="sm" />{g.name}
                 </span>
               ))}
             </div>
           )}
           <div className="flex items-baseline gap-3 mb-1">
-            {beforePrice > 0 && <span className="text-gray-500 line-through text-lg">${beforePrice?.toFixed(2)}/mo</span>}
-            {afterPrice !== undefined && <span className="text-3xl font-bold text-green-400" style={{ fontFamily: 'var(--font-heading)' }}><SavingsCounter target={afterPrice} prefix="$" />/mo</span>}
+            {beforePrice > 0 && <span className="text-white/30 line-through text-lg">${beforePrice?.toFixed(2)}/mo</span>}
+            {afterPrice !== undefined && <span className="text-3xl font-bold text-[#22C55E]" style={{ fontFamily: 'var(--font-heading)' }}><SavingsCounter target={afterPrice} prefix="$" />/mo</span>}
           </div>
-          <div className="text-gray-400 text-sm">
+          <div className="text-white/50 text-sm">
             Save <span className="text-white font-semibold"><SavingsCounter target={monthlySavings} prefix="$" />/mo</span> — that is <span className="text-white font-semibold"><SavingsCounter target={yearlySavings} prefix="$" /></span> saved per year
           </div>
-          {savingsPercent > 0 && <div className="mt-3 text-purple-300 text-sm font-medium">⚡ Optimized plan reduces your spending by {savingsPercent}%</div>}
+          {savingsPercent > 0 && <div className="mt-3 text-[#C084FC] text-sm font-medium">⚡ Optimized plan reduces your spending by {savingsPercent}%</div>}
         </div>
 
-        {/* ⚠️ Missing shows — shown first, most urgent */}
         {renderMissingShows(missingPlatformShows)}
 
-        {/* What to keep */}
         {keepGroups.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3 text-green-400" style={{ fontFamily: 'var(--font-heading)' }}>What to Keep</h2>
+            <h2 className="text-lg font-semibold mb-3 text-[#22C55E]" style={{ fontFamily: 'var(--font-heading)' }}>What to Keep</h2>
             {keepGroups.map((g: any, i: number) => renderPlatformCard(g, i))}
           </div>
         )}
 
-        {/* Best for browsing */}
         {browsingPick && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-3 text-blue-400" style={{ fontFamily: 'var(--font-heading)' }}>Best for Browsing</h2>
-            <div className="border border-blue-500/30 bg-blue-500/5 rounded-xl p-5">
+            <div className="border border-blue-500/25 bg-blue-500/5 rounded-[24px] p-5">
               <div className="flex items-center gap-3 mb-3">
                 <PlatformIcon name={browsingPick.name} platformKey={browsingPick.platformKey} color={browsingPick.color} size="lg" />
                 <span className="text-xl font-bold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{browsingPick.name}</span>
-                <span className="text-gray-400">${browsingPick.price}/mo</span>
-                {browsingPick.isCurrentSub && <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">You subscribe</span>}
+                <span className="text-white/40">${browsingPick.price}/mo</span>
+                {browsingPick.isCurrentSub && <span className="text-xs px-2 py-0.5 rounded-full bg-[#22C55E]/20 text-[#22C55E]">You subscribe</span>}
               </div>
-              <div className="text-gray-300 text-sm mb-2">{browsingPick.reason}</div>
-              {browsingPick.whyStatement && <div className="text-blue-300/80 text-sm mb-3 italic">{browsingPick.whyStatement}</div>}
+              <div className="text-white/60 text-sm mb-2">{browsingPick.reason}</div>
+              {browsingPick.whyStatement && <div className="text-blue-300/70 text-sm mb-3 italic">{browsingPick.whyStatement}</div>}
               <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-white/5 rounded-lg p-3 text-center"><div className="text-xl font-bold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{browsingPick.totalTitles?.toLocaleString()}</div><div className="text-xs text-gray-500">Total Titles</div></div>
-                <div className="bg-white/5 rounded-lg p-3 text-center"><div className="text-xl font-bold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{browsingPick.tvShows?.toLocaleString()}</div><div className="text-xs text-gray-500">TV Shows</div></div>
-                <div className="bg-white/5 rounded-lg p-3 text-center"><div className="text-xl font-bold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{browsingPick.movies?.toLocaleString()}</div><div className="text-xs text-gray-500">Movies</div></div>
+                <div className="bg-white/[0.04] rounded-xl p-3 text-center"><div className="text-xl font-bold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{browsingPick.totalTitles?.toLocaleString()}</div><div className="text-xs text-white/40">Total Titles</div></div>
+                <div className="bg-white/[0.04] rounded-xl p-3 text-center"><div className="text-xl font-bold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{browsingPick.tvShows?.toLocaleString()}</div><div className="text-xs text-white/40">TV Shows</div></div>
+                <div className="bg-white/[0.04] rounded-xl p-3 text-center"><div className="text-xl font-bold text-white" style={{ fontFamily: 'var(--font-heading)' }}>{browsingPick.movies?.toLocaleString()}</div><div className="text-xs text-white/40">Movies</div></div>
               </div>
               {browsingPick.isCurrentSub
-                ? <div className="text-green-400 text-sm font-medium">Keep this subscription for the best browsing experience based on your preferences.</div>
+                ? <div className="text-[#22C55E] text-sm font-medium">Keep this subscription for the best browsing experience based on your preferences.</div>
                 : <div className="text-blue-400 text-sm font-medium">Consider adding this subscription for the best browsing experience based on your preferences.</div>}
             </div>
           </div>
         )}
 
-        {/* Binge and cancel */}
         {bingeGroups.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3 text-yellow-400" style={{ fontFamily: 'var(--font-heading)' }}>Binge and Cancel</h2>
+            <h2 className="text-lg font-semibold mb-3 text-amber-400" style={{ fontFamily: 'var(--font-heading)' }}>Binge and Cancel</h2>
             {bingeGroups.map((g: any, i: number) => renderPlatformCard(g, i))}
           </div>
         )}
 
-        {/* What to cut */}
         {cutGroups.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3 text-red-400" style={{ fontFamily: 'var(--font-heading)' }}>What to Cut</h2>
-            {cutGroups.length > 1 && <div className="text-red-400/70 text-sm mb-3">Cutting {cutGroups.length} platforms saves you ${cutSavings.toFixed(2)}/mo</div>}
+            <h2 className="text-lg font-semibold mb-3 text-rose-400" style={{ fontFamily: 'var(--font-heading)' }}>What to Cut</h2>
+            {cutGroups.length > 1 && <div className="text-rose-400/60 text-sm mb-3">Cutting {cutGroups.length} platforms saves you ${cutSavings.toFixed(2)}/mo</div>}
             {cutGroups.map((g: any, i: number) => renderPlatformCard(g, i))}
           </div>
         )}
 
-        {/* Free alternatives */}
         {freeShows?.length > 0 && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-3 text-emerald-400" style={{ fontFamily: 'var(--font-heading)' }}>Free Alternatives</h2>
-            <div className="border border-emerald-500/30 bg-emerald-500/5 rounded-xl p-5">
-              <div className="text-gray-400 text-sm mb-3">These shows are available for free with ads:</div>
+            <div className="border border-emerald-500/25 bg-emerald-500/5 rounded-[24px] p-5">
+              <div className="text-white/50 text-sm mb-3">These shows are available for free with ads:</div>
               <div className="space-y-2">
                 {freeShows.map((show: any, i: number) => (
                   <div key={i} className="flex items-center gap-3">
-                    {show.posterPath && <img src={show.posterPath} alt={show.name} className="w-8 h-12 rounded object-cover" />}
-                    <span className="text-sm text-emerald-300">{show.name} <span className="text-emerald-500">on {show.freeOn?.name}</span></span>
+                    {show.posterPath && <img src={show.posterPath} alt={show.name} className="w-8 h-12 rounded-lg object-cover" />}
+                    <span className="text-sm text-emerald-300">{show.name} <span className="text-emerald-500/70">on {show.freeOn?.name}</span></span>
                   </div>
                 ))}
               </div>
@@ -790,99 +762,101 @@ export default function Analyze() {
           </div>
         )}
 
-        {/* ROI upsell */}
         {renderUpsell(yearlySavings)}
 
-        {/* Footer */}
-        <div className="border-t border-gray-800 pt-4 mb-6">
-          <div className="text-xs text-gray-600 text-center">Analysis powered by verified data from 26,000+ titles across 13 streaming platforms. Library counts sourced from TMDB. Subscription-included titles only — no rentals.</div>
+        <div className="border-t border-white/[0.06] pt-4 mb-6">
+          <div className="text-xs text-white/20 text-center">Analysis powered by verified data from 26,000+ titles across 13 streaming platforms. Library counts sourced from TMDB. Subscription-included titles only — no rentals.</div>
         </div>
         <div className="flex flex-wrap gap-3 mt-2">
-          <button onClick={handleShare} className="border border-purple-500/50 text-purple-400 px-6 py-2.5 rounded-full text-sm font-medium hover:bg-purple-500/10 hover:scale-[1.02] transition-all inline-flex items-center gap-2">📤 Share Results</button>
-          <button onClick={handleReset} className="border border-gray-700 text-gray-400 px-6 py-2.5 rounded-full text-sm font-medium hover:bg-gray-800 hover:scale-[1.02] transition-all">Run Another Analysis</button>
+          <button onClick={handleShare} className="border border-[#A855F7]/40 text-[#C084FC] px-6 py-2.5 rounded-full text-sm font-medium hover:bg-[#A855F7]/10 hover:scale-[1.02] transition-all inline-flex items-center gap-2">📤 Share Results</button>
+          <button onClick={handleReset} className="border border-white/10 text-white/50 px-6 py-2.5 rounded-full text-sm font-medium hover:bg-white/5 hover:scale-[1.02] transition-all">Run Another Analysis</button>
+          {user && <Link href="/dashboard" className="border border-white/10 text-white/50 px-6 py-2.5 rounded-full text-sm font-medium hover:bg-white/5 hover:scale-[1.02] transition-all">View Dashboard</Link>}
         </div>
-        {shareMessage && <div className="text-green-400 text-xs mt-2">{shareMessage}</div>}
+        {shareMessage && <div className="text-[#22C55E] text-xs mt-2">{shareMessage}</div>}
       </div>
     );
   };
 
-  // ─── Page render ───────────────────────────────────────────────────────────
-
+  // ── Page ─────────────────────────────────────────────────────────────────────
   return (
-    <main className="min-h-screen bg-[#07060b] text-white px-6 py-10 max-w-3xl mx-auto relative" style={{ fontFamily: 'var(--font-body)' }}>
+    <main className="min-h-screen bg-[#07070B] text-white px-6 py-10 max-w-3xl mx-auto relative" style={{ fontFamily: 'var(--font-body)' }}>
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[50%] translate-x-[-50%] w-[700px] h-[500px] bg-purple-600/[0.06] rounded-full blur-[130px]" />
+        <div className="absolute top-[-20%] left-[50%] translate-x-[-50%] w-[700px] h-[500px] bg-[#A855F7]/[0.05] rounded-full blur-[130px]" />
       </div>
       <div ref={topRef} className="relative z-10" />
 
       {/* Nav */}
       <div className="relative z-10 flex items-center justify-between mb-10">
-        <a href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-400 via-emerald-400 to-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/20 group-hover:shadow-purple-500/40 transition-shadow duration-300">
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#22C55E] via-emerald-400 to-[#A855F7] flex items-center justify-center shadow-lg shadow-[#A855F7]/20">
             <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
               <path d="M4 12h4l3-7 4 14 3-7h4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <span className="text-[15px] font-bold tracking-tight text-white/80 group-hover:text-white transition-colors duration-200" style={{ fontFamily: 'var(--font-heading)' }}>
-            Sav<span className="bg-gradient-to-r from-green-400 to-purple-400 bg-clip-text text-transparent">Flix</span>
+          <span className="text-[15px] font-bold tracking-tight text-white/80 group-hover:text-white transition-colors" style={{ fontFamily: 'var(--font-heading)' }}>
+            Sav<span className="bg-gradient-to-r from-[#22C55E] to-[#A855F7] bg-clip-text text-transparent">Flix</span>
           </span>
-        </a>
+        </Link>
         <div className="flex items-center gap-3">
-          {user?.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="avatar" className="w-7 h-7 rounded-full" />}
-          <span className="text-sm text-gray-400 hidden sm:block">{user?.user_metadata?.full_name || user?.email}</span>
-          <button onClick={handleSignOut} className="text-xs text-gray-500 hover:text-white border border-gray-700 hover:border-gray-500 px-3 py-1.5 rounded-lg transition-colors">Sign out</button>
+          {user ? (
+            <>
+              {user.user_metadata?.avatar_url && <img src={user.user_metadata.avatar_url} alt="avatar" className="w-7 h-7 rounded-full" />}
+              <span className="text-sm text-white/40 hidden sm:block">{user.user_metadata?.full_name || user.email}</span>
+              <button onClick={handleSignOut} className="text-xs text-white/30 hover:text-white border border-white/10 hover:border-white/30 px-3 py-1.5 rounded-lg transition-colors">Sign out</button>
+            </>
+          ) : (
+            <Link href="/auth" className="text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/30 px-3 py-1.5 rounded-lg transition-colors">Sign in</Link>
+          )}
         </div>
       </div>
 
-      {/* Scan limit wall */}
       {result === 'scan_limit_reached' && renderScanLimitWall()}
 
-      {/* Input form */}
       {!result && !analysisData && (
         <div className="relative z-10">
-          {/* Progress bar */}
+          {/* Progress */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-500" style={{ fontFamily: 'var(--font-heading)' }}>Step {currentStep} of 3</span>
-              <span className="text-xs text-gray-600">{stepLabel}</span>
+              <span className="text-xs text-white/30" style={{ fontFamily: 'var(--font-heading)' }}>Step {currentStep} of 3</span>
+              <span className="text-xs text-white/20">{stepLabel}</span>
             </div>
             <div className="w-full h-1 bg-white/[0.04] rounded-full overflow-hidden">
-              <div className="h-1 bg-gradient-to-r from-green-500 to-purple-500 rounded-full transition-all duration-500" style={{ width: stepPercent }} />
+              <div className="h-1 bg-gradient-to-r from-[#22C55E] to-[#A855F7] rounded-full transition-all duration-500" style={{ width: stepPercent }} />
             </div>
           </div>
 
           <h1 className="text-3xl font-bold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Build Your Streaming Profile</h1>
-          <div className="text-gray-400 text-sm mb-8">Select your subscriptions and tell us what you watch. We will find the smartest way to save.</div>
+          <div className="text-white/50 text-sm mb-8">Select your subscriptions and tell us what you watch. We will find the smartest way to save.</div>
 
           {/* Subscriptions */}
           <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: 'var(--font-heading)' }}>Your Subscriptions</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
             {SERVICES.map((svc, i) => (
               <button key={svc.name} onClick={() => toggleService(svc.name)} style={{ animationDelay: `${i * 30}ms` }}
-                className={"p-4 rounded-xl border text-left transition-all duration-300 " + (selected.includes(svc.name) ? "border-purple-500 bg-purple-900/30 text-white shadow-lg shadow-purple-500/15 scale-[1.02]" : "border-gray-700/50 bg-white/[0.02] text-gray-400 hover:border-purple-400/50 hover:bg-white/[0.04] hover:scale-[1.02]")}>
+                className={"p-4 rounded-[20px] border text-left transition-all duration-300 " + (selected.includes(svc.name) ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white shadow-[0_0_20px_rgba(168,85,247,0.15)] scale-[1.02]" : "border-white/[0.06] bg-white/[0.02] text-white/60 hover:border-[#A855F7]/30 hover:bg-white/[0.04] hover:scale-[1.02]")}>
                 <div className="flex items-center gap-3">
                   <PlatformIcon name={svc.name} color="#6B7280" size="md" />
-                  <div><div className="font-medium text-sm">{svc.name}</div><div className="text-xs mt-0.5 text-gray-500">${svc.price}/mo</div></div>
+                  <div><div className="font-medium text-sm">{svc.name}</div><div className="text-xs mt-0.5 text-white/30">${svc.price}/mo</div></div>
                 </div>
               </button>
             ))}
           </div>
-          {selected.length > 0 && <div className="text-sm text-gray-400 mb-8">Current total: <span className="text-white font-semibold">${totalMonthly.toFixed(2)}/mo</span></div>}
+          {selected.length > 0 && <div className="text-sm text-white/40 mb-8">Current total: <span className="text-white font-semibold">${totalMonthly.toFixed(2)}/mo</span></div>}
 
           <div className="border-t border-white/[0.04] my-8" />
 
           {/* Shows */}
           <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Shows You Watch</h2>
-          <div className="text-gray-400 text-xs mb-4">This helps us find the cheapest platform combo and build your binge plan.</div>
+          <div className="text-white/40 text-xs mb-4">This helps us find the cheapest platform combo and build your binge plan.</div>
           <div className="relative mb-4">
             <input type="text" placeholder="Search any show..." value={showQuery} onChange={e => setShowQuery(e.target.value)}
-              className="w-full p-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-sm focus:border-purple-500 focus:outline-none focus:bg-white/[0.05] transition-all" />
+              className="w-full p-3 rounded-[16px] bg-white/[0.03] border border-white/[0.06] text-sm focus:border-[#A855F7]/50 focus:outline-none focus:bg-white/[0.05] transition-all text-white placeholder:text-white/20" />
             {showResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-[#0c0b12] border border-white/[0.1] rounded-xl overflow-hidden z-10 shadow-2xl">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[#0D0F14] border border-white/[0.08] rounded-[20px] overflow-hidden z-10 shadow-2xl">
                 {showResults.map(show => (
-                  <button key={show.id} onClick={() => addShow(show)} className="w-full flex items-center gap-3 p-3 hover:bg-white/[0.05] transition text-left">
-                    {show.poster && <img src={show.poster} alt="" className="w-8 h-12 rounded object-cover" />}
-                    <div><div className="text-sm font-medium">{show.name}</div><div className="text-xs text-gray-500">{show.year}</div></div>
+                  <button key={show.id} onClick={() => addShow(show)} className="w-full flex items-center gap-3 p-3 hover:bg-white/[0.04] transition text-left">
+                    {show.poster && <img src={show.poster} alt="" className="w-8 h-12 rounded-lg object-cover" />}
+                    <div><div className="text-sm font-medium text-white">{show.name}</div><div className="text-xs text-white/30">{show.year}</div></div>
                   </button>
                 ))}
               </div>
@@ -894,24 +868,23 @@ export default function Analyze() {
               {myShows.map(show => {
                 const platform = getPlatformLabel(show);
                 const status   = getStatusLabel(show);
-                // Orange chip if show is not on any selected platform
                 const chipClass = platform.isFree
-                  ? "bg-green-500/10 border-green-500/30"
+                  ? "bg-[#22C55E]/10 border-[#22C55E]/25"
                   : platform.isMissing
-                    ? "bg-orange-500/10 border-orange-500/40"
-                    : "bg-purple-500/10 border-purple-500/30";
+                    ? "bg-amber-500/10 border-amber-500/30"
+                    : "bg-[#A855F7]/10 border-[#A855F7]/25";
                 return (
-                  <span key={show.id} className={`inline-flex items-start gap-2 rounded-xl px-3 py-2 text-sm border transition-all duration-300 hover:scale-[1.02] ${chipClass}`}>
-                    {show.poster && <img src={show.poster} alt="" className="w-6 h-9 rounded object-cover flex-shrink-0 mt-0.5" />}
+                  <span key={show.id} className={`inline-flex items-start gap-2 rounded-[16px] px-3 py-2 text-sm border transition-all duration-300 hover:scale-[1.02] ${chipClass}`}>
+                    {show.poster && <img src={show.poster} alt="" className="w-6 h-9 rounded-lg object-cover flex-shrink-0 mt-0.5" />}
                     <span className="flex flex-col gap-0.5">
                       <span className="flex items-center gap-1">
-                        <span className="font-medium">{show.name}</span>
-                        <button onClick={() => removeShow(show.id)} className="text-gray-400 hover:text-white ml-1 text-xs">&times;</button>
+                        <span className="font-medium text-white">{show.name}</span>
+                        <button onClick={() => removeShow(show.id)} className="text-white/30 hover:text-white ml-1 text-xs">&times;</button>
                       </span>
-                      <span className={`text-xs ${platform.isFree ? "text-green-400" : platform.isMissing ? "text-orange-400" : "text-gray-400"}`}>
+                      <span className={`text-xs ${platform.isFree ? "text-[#22C55E]" : platform.isMissing ? "text-amber-400" : "text-white/40"}`}>
                         {platform.isMissing ? "⚠️ " : ""}{platform.text}
                       </span>
-                      {platform.isMissing && <span className="text-xs text-orange-400/70">Not on your selected platforms</span>}
+                      {platform.isMissing && <span className="text-xs text-amber-400/60">Not on your selected platforms</span>}
                       <span className={`text-xs ${status.color}`}>{status.text}</span>
                       {show.seasonFinaleDate && status.text === "Currently Airing" && (
                         <span className="text-xs text-amber-400">Season ends ~{new Date(show.seasonFinaleDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
@@ -927,59 +900,66 @@ export default function Analyze() {
 
           {/* Viewing habits */}
           <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>Your Viewing Habits</h2>
-          <div className="text-gray-400 text-xs mb-6">Answer all three questions so we can give you the best recommendation.</div>
+          <div className="text-white/40 text-xs mb-6">Answer all three questions so we can give you the best recommendation.</div>
           <div className="mb-6">
-            <div className="text-sm text-gray-300 mb-3">What do you mostly watch?</div>
+            <div className="text-sm text-white/60 mb-3">What do you mostly watch?</div>
             <div className="flex flex-wrap gap-2">
               {BROWSE_OPTIONS.map(opt => (
-                <button key={opt.id} onClick={() => setBrowseType(opt.label)} className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (browseType === opt.label ? "border-purple-500 bg-purple-500/10 text-white shadow-md shadow-purple-500/10" : "border-gray-700/50 text-gray-400 hover:border-gray-500 hover:scale-[1.02]")}>{opt.label}</button>
+                <button key={opt.id} onClick={() => setBrowseType(opt.label)}
+                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (browseType === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
+                  {opt.label}
+                </button>
               ))}
             </div>
           </div>
           <div className="mb-6">
-            <div className="text-sm text-gray-300 mb-3">Who usually watches?</div>
+            <div className="text-sm text-white/60 mb-3">Who usually watches?</div>
             <div className="flex flex-wrap gap-2">
               {VIEWER_OPTIONS.map(opt => (
-                <button key={opt.id} onClick={() => setViewerType(opt.label)} className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (viewerType === opt.label ? "border-purple-500 bg-purple-500/10 text-white shadow-md shadow-purple-500/10" : "border-gray-700/50 text-gray-400 hover:border-gray-500 hover:scale-[1.02]")}>{opt.label}</button>
+                <button key={opt.id} onClick={() => setViewerType(opt.label)}
+                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (viewerType === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
+                  {opt.label}
+                </button>
               ))}
             </div>
           </div>
           <div className="mb-8">
-            <div className="text-sm text-gray-300 mb-3">What matters most to you?</div>
+            <div className="text-sm text-white/60 mb-3">What matters most to you?</div>
             <div className="flex flex-wrap gap-2">
               {PRIORITY_OPTIONS.map(opt => (
-                <button key={opt.id} onClick={() => setPriority(opt.label)} className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (priority === opt.label ? "border-purple-500 bg-purple-500/10 text-white shadow-md shadow-purple-500/10" : "border-gray-700/50 text-gray-400 hover:border-gray-500 hover:scale-[1.02]")}>{opt.label}</button>
+                <button key={opt.id} onClick={() => setPriority(opt.label)}
+                  className={"px-4 py-2 rounded-full text-sm border transition-all duration-300 " + (priority === opt.label ? "border-[#A855F7]/60 bg-[#A855F7]/10 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "border-white/[0.06] text-white/40 hover:border-white/20 hover:scale-[1.02]")}>
+                  {opt.label}
+                </button>
               ))}
             </div>
           </div>
 
           <button onClick={handleAnalyze} disabled={loading || !canAnalyze}
-            className={"px-8 py-3.5 rounded-xl font-semibold transition-all duration-300 w-full md:w-auto " + (canAnalyze ? "bg-gradient-to-r from-green-600 to-purple-600 text-white hover:from-green-500 hover:to-purple-500 hover:scale-[1.02] shadow-lg shadow-purple-600/20" : "bg-gray-700/50 text-gray-500 cursor-not-allowed")}
+            className={"px-8 py-3.5 rounded-[16px] font-semibold transition-all duration-300 w-full md:w-auto " + (canAnalyze ? "bg-gradient-to-r from-[#22C55E] to-[#A855F7] text-white hover:scale-[1.02] shadow-[0_12px_40px_rgba(168,85,247,0.24)]" : "bg-white/[0.04] text-white/20 cursor-not-allowed")}
             style={{ fontFamily: 'var(--font-heading)' }}>
             {loading ? "Analyzing..." : !canAnalyze ? (selected.length === 0 ? "Select your subscriptions to start" : "Complete all viewing habits to analyze") : "Analyze My Subscriptions"}
           </button>
-          <div className="text-center mt-3 text-xs text-gray-600">Takes less than 60 seconds · 3 free scans included</div>
+          <div className="text-center mt-3 text-xs text-white/20">Takes less than 60 seconds · 3 free scans included</div>
         </div>
       )}
 
-      {/* Loading spinner */}
       {loading && (
         <div className="relative z-10 mt-16 flex flex-col items-center gap-6">
           <div className="relative">
-            <div className="w-14 h-14 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
-            <div className="absolute inset-0 w-14 h-14 bg-purple-500/10 rounded-full blur-xl" />
+            <div className="w-14 h-14 border-4 border-[#A855F7]/20 border-t-[#A855F7] rounded-full animate-spin" />
+            <div className="absolute inset-0 w-14 h-14 bg-[#A855F7]/10 rounded-full blur-xl" />
           </div>
           <div className="text-center">
             <div className="text-white font-medium mb-1" style={{ fontFamily: 'var(--font-heading)' }}>Analyzing your subscriptions</div>
-            <div className="text-purple-400 text-sm h-5 transition-all duration-300">{LOADING_MESSAGES[loadingMsg]}</div>
+            <div className="text-[#C084FC] text-sm h-5 transition-all duration-300">{LOADING_MESSAGES[loadingMsg]}</div>
           </div>
           <div className="flex gap-1.5 mt-2">
-            {LOADING_MESSAGES.map((_, i) => (<div key={i} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === loadingMsg ? 'bg-purple-400 scale-125' : 'bg-gray-700'}`} />))}
+            {LOADING_MESSAGES.map((_, i) => (<div key={i} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === loadingMsg ? 'bg-[#A855F7] scale-125' : 'bg-white/10'}`} />))}
           </div>
         </div>
       )}
 
-      {/* Results */}
       {analysisData && <div className="relative z-10">{renderPremiumResults()}</div>}
     </main>
   );
