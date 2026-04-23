@@ -157,6 +157,7 @@ function generateShareText(analysisData: any): string {
 export default function Analyze() {
   const [mounted,         setMounted]         = useState(false);
   const [user,            setUser]            = useState<any>(null);
+  const [userPlan,        setUserPlan]        = useState<string>('free');
   const [authLoading,     setAuthLoading]     = useState(true);
   const [platformLogos,   setPlatformLogos]   = useState<Record<string, string>>(PLATFORM_LOGOS_DEFAULT);
   const [selected,        setSelected]        = useState<string[]>([]);
@@ -175,7 +176,6 @@ export default function Analyze() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
-  // Resolve logo from state
   const getPlatformLogo = useCallback((nameOrKey: string): string | null => {
     if (platformLogos[nameOrKey]) return platformLogos[nameOrKey];
     const key = KEY_MAP[nameOrKey];
@@ -189,11 +189,14 @@ export default function Analyze() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user || null);
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('plan').eq('id', user.id).single();
+        setUserPlan(profile?.plan || 'free');
+      }
       setAuthLoading(false);
     })();
   }, []);
 
-  // Fetch correct logo paths from TMDB — stored in state so React re-renders
   useEffect(() => {
     (async () => {
       try {
@@ -232,6 +235,7 @@ export default function Analyze() {
     </main>
   );
 
+  const isPaid = userPlan === 'basic' || userPlan === 'pro' || userPlan === 'lifetime';
   const allHabitsSelected = browseType !== "" && viewerType !== "" && priority !== "";
   const canAnalyze        = selected.length > 0 && allHabitsSelected;
   const currentStep       = selected.length === 0 ? 1 : myShows.length === 0 ? 2 : 3;
@@ -300,7 +304,7 @@ export default function Analyze() {
     return { text: s, color: "text-gray-500" };
   };
 
-  const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); };
+  const handleSignOut = async () => { await supabase.auth.signOut(); setUser(null); setUserPlan('free'); };
 
   const handleAnalyze = async () => {
     if (!canAnalyze) return;
@@ -360,7 +364,6 @@ export default function Analyze() {
     finally { setCheckoutLoading(null); }
   };
 
-  // PlatformIcon uses getPlatformLogo from state via useCallback
   const PlatformIcon = ({ name, platformKey, color, size = 'sm' }: { name: string; platformKey?: string; color: string; size?: 'sm' | 'md' | 'lg' }) => {
     const logo = getPlatformLogo(name) || (platformKey ? getPlatformLogo(platformKey) : null);
     const sz   = { sm: 'w-7 h-7', md: 'w-8 h-8', lg: 'w-10 h-10' }[size];
@@ -549,27 +552,29 @@ export default function Analyze() {
                 Adding {group.platformName} would bring your total to <span className="text-white">${(totalMonthly + group.price).toFixed(2)}/mo</span>
               </div>
             </div>
-            <div className="border border-[#A855F7]/25 bg-[#A855F7]/5 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">🔒</span>
-                <span className="text-[#C084FC] text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Premium Recommendation</span>
+            {!isPaid && (
+              <div className="border border-[#A855F7]/25 bg-[#A855F7]/5 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-lg">🔒</span>
+                  <span className="text-[#C084FC] text-sm font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>Premium Recommendation</span>
+                </div>
+                <div className="text-white/40 text-xs mb-3 space-y-1.5">
+                  <div>• Is adding {group.platformName} worth it based on your full monthly spend?</div>
+                  <div>• Could you replace a current subscription with {group.platformName} and pay less?</div>
+                  <div>• What's the cheapest combo that covers all your shows?</div>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null}
+                    className="rounded-2xl border border-[#A855F7]/40 bg-[#A855F7]/10 px-4 py-2 text-xs font-semibold text-white hover:bg-[#A855F7]/20 transition-all disabled:opacity-60">
+                    {checkoutLoading === 'basic' ? 'Redirecting...' : 'Unlock for $2.99/mo'}
+                  </button>
+                  <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null}
+                    className="rounded-2xl bg-gradient-to-r from-[#22C55E] to-[#A855F7] px-4 py-2 text-xs font-bold text-white hover:scale-[1.02] transition-all disabled:opacity-60">
+                    {checkoutLoading === 'lifetime' ? 'Redirecting...' : '$39 Lifetime'}
+                  </button>
+                </div>
               </div>
-              <div className="text-white/40 text-xs mb-3 space-y-1.5">
-                <div>• Is adding {group.platformName} worth it based on your full monthly spend?</div>
-                <div>• Could you replace a current subscription with {group.platformName} and pay less?</div>
-                <div>• What's the cheapest combo that covers all your shows?</div>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={() => handleCheckout('basic')} disabled={checkoutLoading !== null}
-                  className="rounded-2xl border border-[#A855F7]/40 bg-[#A855F7]/10 px-4 py-2 text-xs font-semibold text-white hover:bg-[#A855F7]/20 transition-all disabled:opacity-60">
-                  {checkoutLoading === 'basic' ? 'Redirecting...' : 'Unlock for $2.99/mo'}
-                </button>
-                <button onClick={() => handleCheckout('lifetime')} disabled={checkoutLoading !== null}
-                  className="rounded-2xl bg-gradient-to-r from-[#22C55E] to-[#A855F7] px-4 py-2 text-xs font-bold text-white hover:scale-[1.02] transition-all disabled:opacity-60">
-                  {checkoutLoading === 'lifetime' ? 'Redirecting...' : '$39 Lifetime'}
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         ))}
       </div>
@@ -582,6 +587,24 @@ export default function Analyze() {
     const netAnnualSavings = Math.max(0, annualSavings - basicAnnualCost);
     const roiMultiple      = annualSavings > 0 ? Math.round(annualSavings / basicAnnualCost) : 0;
 
+    // Paid users — show dashboard CTA instead of upgrade buttons
+    if (isPaid) return (
+      <div className="mb-6 rounded-[28px] border border-[#22C55E]/20 overflow-hidden">
+        <div className="bg-gradient-to-r from-[#0E1320] to-[#0A1A10] p-6">
+          <div className="text-xs text-[#86EFAC] font-medium uppercase tracking-[0.24em] mb-2">Your plan is active</div>
+          <div className="text-xl font-bold text-white mb-1" style={{ fontFamily: 'var(--font-heading)' }}>
+            {annualSavings > 0 ? <>This just saved you <SavingsCounter target={yearlySavings} prefix="$" />/year.</> : 'Your subscriptions are optimized.'}
+          </div>
+          <div className="text-white/50 text-sm mb-4">Your results are saved to your dashboard.</div>
+          <Link href="/dashboard"
+            className="inline-block rounded-2xl border border-[#22C55E]/40 bg-[#22C55E]/10 px-6 py-3 text-sm font-semibold text-[#86EFAC] hover:bg-[#22C55E]/20 transition-all">
+            View Dashboard →
+          </Link>
+        </div>
+      </div>
+    );
+
+    // Free users — show upgrade upsell
     if (annualSavings > 0) return (
       <div className="mb-6 rounded-[28px] border border-[#A855F7]/25 overflow-hidden">
         <div className="bg-gradient-to-r from-[#0E1320] to-[#130B22] p-6">
@@ -932,7 +955,7 @@ export default function Analyze() {
             style={{ fontFamily: 'var(--font-heading)' }}>
             {loading ? "Analyzing..." : !canAnalyze ? (selected.length === 0 ? "Select your subscriptions to start" : "Complete all viewing habits to analyze") : "Analyze My Subscriptions"}
           </button>
-          <div className="text-center mt-3 text-xs text-white/20">Takes less than 60 seconds · 3 free scans included</div>
+          <div className="text-center mt-3 text-xs text-white/20">Takes less than 60 seconds · {isPaid ? 'Unlimited scans included' : '3 free scans included'}</div>
         </div>
       )}
 
