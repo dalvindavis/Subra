@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         const customerId = session.customer as string;
 
         if (userId && plan) {
-          const planValue = plan === 'lifetime' ? 'lifetime' : 'basic';
+          const planValue = plan === 'lifetime' ? 'lifetime' : plan === 'pro' ? 'pro' : 'basic';  
           await supabaseAdmin
             .from('profiles')
             .update({
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
             await supabaseAdmin
               .from('profiles')
               .update({
-                plan: plan === 'lifetime' ? 'lifetime' : 'basic',
+                plan: plan === 'lifetime' ? 'lifetime' : plan === 'pro' ? 'pro' : 'basic',
                 stripe_customer_id: customerId,
               })
               .eq('id', profile.id);
