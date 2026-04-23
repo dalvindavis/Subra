@@ -2,28 +2,28 @@
 import { useState, useEffect, useRef } from "react";
 
 const PLATFORMS = [
-  { name: "Netflix", key: "netflix", logo: "https://image.tmdb.org/t/p/w92/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg" },
-  { name: "Hulu", key: "hulu", logo: "https://image.tmdb.org/t/p/w92/giwM8XX4V2AQb9vsoN7yti82tKK.jpg" },
-  { name: "Disney+", key: "disney-plus", logo: "https://image.tmdb.org/t/p/w92/7rwgEs15tFwyR9NPQ5vpzxTj19Q.jpg" },
-  { name: "HBO Max", key: "hbo-max", logo: "https://image.tmdb.org/t/p/w92/aS2zvJWn9mwiCOeaaCkIh4wleZS.jpg" },
-  { name: "Prime Video", key: "prime-video", logo: "https://image.tmdb.org/t/p/w92/emthp39XA2YScoYL1p0sdbAH2WA.jpg" },
-  { name: "Apple TV+", key: "apple-tv", logo: "https://image.tmdb.org/t/p/w92/6uhKBfmtzFqOcLousHwZuzcrScK.jpg" },
-  { name: "Peacock", key: "peacock", logo: "https://image.tmdb.org/t/p/w92/xTHltMrZPAJFLQ6qyCBjAnXSmZt.jpg" },
-  { name: "Paramount+", key: "paramount-plus", logo: "https://image.tmdb.org/t/p/w92/xbhHHa1YObwAn9IG6UvAsKPMF3Z.jpg" },
-  { name: "Crunchyroll", key: "crunchyroll", logo: "https://image.tmdb.org/t/p/w92/8Gt1iClBlzTeQs8WQm8UrCoIxnQ.jpg" },
-  { name: "AMC+", key: "amc-plus", logo: "https://image.tmdb.org/t/p/w92/xlonQMSmhtA2HHwK3JKF9ghx7M8.jpg" },
-  { name: "Starz", key: "starz", logo: "https://image.tmdb.org/t/p/w92/eWp5LdR4p4Foyl1Ysb2UT3p3wiw.jpg" },
-  { name: "Discovery+", key: "discovery-plus", logo: "https://image.tmdb.org/t/p/w92/1w84RPTHBMFJ0NzgMJHGZD0alLb.jpg" },
-  { name: "MGM+", key: "mgm-plus", logo: "https://image.tmdb.org/t/p/w92/2YOk2ST0zdUwbVbJIm1bh9O7cDn.jpg" },
+  { name: "Netflix",      key: "netflix",        logo: "https://image.tmdb.org/t/p/w92/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg" },
+  { name: "Hulu",         key: "hulu",           logo: "https://image.tmdb.org/t/p/w92/giwM8XX4V2AQb9vsoN7yti82tKK.jpg" },
+  { name: "Disney+",      key: "disney-plus",    logo: "https://image.tmdb.org/t/p/w92/7rwgEs15tFwyR9NPQ5vpzxTj19Q.jpg" },
+  { name: "HBO Max",      key: "hbo-max",        logo: "https://image.tmdb.org/t/p/w92/aS2zvJWn9mwiCOeaaCkIh4wleZS.jpg" },
+  { name: "Prime Video",  key: "prime-video",    logo: "https://image.tmdb.org/t/p/w92/emthp39XA2YScoYL1p0sdbAH2WA.jpg" },
+  { name: "Apple TV+",    key: "apple-tv",       logo: "https://image.tmdb.org/t/p/w92/6uhKBfmtzFqOcLousHwZuzcrScK.jpg" },
+  { name: "Peacock",      key: "peacock",        logo: "https://image.tmdb.org/t/p/w92/xTHltMrZPAJFLQ6qyCBjAnXSmZt.jpg" },
+  { name: "Paramount+",   key: "paramount-plus", logo: "https://image.tmdb.org/t/p/w92/xbhHHa1YObwAn9IG6UvAsKPMF3Z.jpg" },
+  { name: "Crunchyroll",  key: "crunchyroll",    logo: "https://image.tmdb.org/t/p/w92/8Gt1iClBlzTeQs8WQm8UrCoIxnQ.jpg" },
+  { name: "AMC+",         key: "amc-plus",       logo: "https://image.tmdb.org/t/p/w92/xlonQMSmhtA2HHwK3JKF9ghx7M8.jpg" },
+  { name: "Starz",        key: "starz",          logo: "https://image.tmdb.org/t/p/w92/eWp5LdR4p4Foyl1Ysb2UT3p3wiw.jpg" },
+  { name: "Discovery+",   key: "discovery-plus", logo: "https://image.tmdb.org/t/p/w92/1w84RPTHBMFJ0NzgMJHGZD0alLb.jpg" },
+  { name: "MGM+",         key: "mgm-plus",       logo: "https://image.tmdb.org/t/p/w92/2YOk2ST0zdUwbVbJIm1bh9O7cDn.jpg" },
 ];
 
 const Icons = {
-  route: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="5" cy="12" r="2" /><circle cx="19" cy="12" r="2" /><path d="M7 12h4m4 0h2" strokeLinecap="round" /></svg>),
+  route:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" /><circle cx="5" cy="12" r="2" /><circle cx="19" cy="12" r="2" /><path d="M7 12h4m4 0h2" strokeLinecap="round" /></svg>),
   calendar: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" /><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" strokeLinecap="round" /></svg>),
-  free: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>),
-  binge: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" strokeLinecap="round" /></svg>),
-  browse: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" strokeLinecap="round" /></svg>),
-  data: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><path d="M18 20V10M12 20V4M6 20v-6" strokeLinecap="round" strokeLinejoin="round" /></svg>),
+  free:     (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>),
+  binge:    (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" strokeLinecap="round" /></svg>),
+  browse:   (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" strokeLinecap="round" /></svg>),
+  data:     (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6"><path d="M18 20V10M12 20V4M6 20v-6" strokeLinecap="round" strokeLinejoin="round" /></svg>),
 };
 
 function Counter({ target, prefix = "", suffix = "", decimals = 0 }: { target: number; prefix?: string; suffix?: string; decimals?: number }) {
@@ -54,9 +54,7 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [platformLogos, setPlatformLogos] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     (async () => {
@@ -74,7 +72,6 @@ export default function Home() {
 
   return (
     <main className="grain min-h-screen bg-[#07060b] text-white overflow-hidden" style={{ fontFamily: 'var(--font-body)' }}>
-
       {/* Ambient background glows */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-30%] left-[40%] w-[900px] h-[700px] bg-purple-600/[0.07] rounded-full blur-[150px]" />
@@ -83,7 +80,7 @@ export default function Home() {
       </div>
 
       {/* Nav */}
-      <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-5 max-w-6xl mx-auto animate-fade-in-up">
+      <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-5 max-w-6xl mx-auto">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-400 via-emerald-400 to-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
             <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
@@ -104,25 +101,20 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative z-10 px-6 md:px-12 pt-20 md:pt-28 pb-6 max-w-5xl mx-auto text-center">
-        <div className="animate-fade-in-up delay-100">
-          <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-purple-500/20 bg-purple-500/[0.06] text-purple-300 text-sm font-medium backdrop-blur-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-            Analyzes 26,000+ titles across 13 platforms
-          </div>
+        <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full border border-purple-500/20 bg-purple-500/[0.06] text-purple-300 text-sm font-medium backdrop-blur-sm">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+          Analyzes 26,000+ titles across 13 platforms
         </div>
-        <h1
-          className="animate-fade-in-up delay-200 text-[2.75rem] sm:text-5xl md:text-[4rem] lg:text-7xl font-bold leading-[1.08] tracking-tight"
-          style={{ fontFamily: 'var(--font-heading)' }}
-        >
+        <h1 className="text-[2.75rem] sm:text-5xl md:text-[4rem] lg:text-7xl font-bold leading-[1.08] tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
           You're wasting money<br />on streaming.<br />
           <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-purple-400 bg-clip-text text-transparent">
             SavFlix finds it instantly.
           </span>
         </h1>
-        <div className="animate-fade-in-up delay-300 mt-7 text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+        <div className="mt-7 text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
           Tell us your subscriptions and what you watch. We'll show you exactly which platforms to keep, which to cancel, and when.
         </div>
-        <div className="animate-fade-in-up delay-400 mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
           <a href="/analyze" className="group relative bg-gradient-to-r from-green-600 to-purple-600 px-9 py-4 rounded-2xl font-semibold text-white text-lg shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] transition-all duration-300 overflow-hidden">
             <span className="relative z-10 flex items-center justify-center gap-2">
               Scan My Subscriptions Free
@@ -139,7 +131,7 @@ export default function Home() {
       </section>
 
       {/* Platform logos */}
-      <section className="relative z-10 px-6 pt-14 pb-6 max-w-4xl mx-auto animate-fade-in-up delay-500">
+      <section className="relative z-10 px-6 pt-14 pb-6 max-w-4xl mx-auto">
         <div className="text-center text-gray-600 text-[11px] uppercase tracking-[0.25em] mb-6" style={{ fontFamily: 'var(--font-heading)' }}>
           Works with your streaming platforms
         </div>
@@ -147,11 +139,7 @@ export default function Home() {
           {PLATFORMS.map((p, i) => {
             const logoUrl = platformLogos[p.key] || p.logo;
             return (
-              <img
-                key={p.name}
-                src={logoUrl}
-                alt={p.name}
-                title={p.name}
+              <img key={p.name} src={logoUrl} alt={p.name} title={p.name}
                 className="w-9 h-9 md:w-10 md:h-10 rounded-lg object-cover opacity-40 hover:opacity-100 hover:scale-110 transition-all duration-300"
                 style={{ animationDelay: `${i * 50}ms` }}
               />
@@ -161,7 +149,7 @@ export default function Home() {
       </section>
 
       {/* Product mockup */}
-      <section className="relative z-10 px-6 py-12 max-w-4xl mx-auto animate-fade-in-scale delay-600">
+      <section className="relative z-10 px-6 py-12 max-w-4xl mx-auto">
         <div className="mockup-perspective">
           <div className="mockup-tilt">
             <div className="p-[1px] rounded-2xl bg-gradient-to-b from-purple-500/30 via-white/[0.06] to-transparent shadow-2xl" style={{ boxShadow: 'var(--purple-glow)' }}>
@@ -256,7 +244,7 @@ export default function Home() {
             <div key={step.num} className="group relative p-7 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent hover:border-purple-500/30 hover:shadow-xl hover:shadow-purple-500/[0.05] transition-all duration-500">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-purple-500/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className="relative z-10">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/[0.1] border border-purple-500/20 flex items-center justify-center text-purple-400 text-sm font-bold mb-5 group-hover:bg-purple-500/[0.15] group-hover:border-purple-500/30 transition-all duration-300" style={{ fontFamily: 'var(--font-heading)' }}>
+                <div className="w-10 h-10 rounded-xl bg-purple-500/[0.1] border border-purple-500/20 flex items-center justify-center text-purple-400 text-sm font-bold mb-5" style={{ fontFamily: 'var(--font-heading)' }}>
                   {step.num}
                 </div>
                 <h3 className="font-bold text-lg text-white mb-2" style={{ fontFamily: 'var(--font-heading)' }}>{step.title}</h3>
@@ -275,17 +263,17 @@ export default function Home() {
         </h2>
         <div className="mt-16 grid md:grid-cols-2 gap-5">
           {[
-            { icon: Icons.route, title: "Smart Platform Routing", desc: "If a show is on multiple platforms, SavFlix routes it to the one you're already keeping — so you don't pay for an extra subscription." },
-            { icon: Icons.calendar, title: "Cancel Date Reminders", desc: "Get the exact date to cancel after the season finale, with one-tap Google Calendar and Apple Calendar integration." },
-            { icon: Icons.free, title: "Free Alternative Detection", desc: "SavFlix checks if your shows are available free with ads on Tubi, Pluto TV, Roku Channel, or Plex — and tells you to cancel the paid version." },
-            { icon: Icons.binge, title: "Binge-and-Cancel Plans", desc: "For ended or between-season shows, SavFlix builds a binge timeline with estimated watch time so you can subscribe, binge, and cancel." },
-            { icon: Icons.browse, title: "Browsing Recommendation", desc: "Based on what you watch, who watches, and what matters to you — SavFlix picks the single best platform for casual browsing." },
-            { icon: Icons.data, title: "Real Data, Not Opinions", desc: "Every recommendation is backed by verified TMDB data: 26,000+ titles, 13 platforms, real library counts, real airing dates." },
+            { icon: Icons.route,    title: "Smart Platform Routing",    desc: "If a show is on multiple platforms, SavFlix routes it to the one you're already keeping — so you don't pay for an extra subscription." },
+            { icon: Icons.calendar, title: "Cancel Date Reminders",     desc: "Get the exact date to cancel after the season finale, with one-tap Google Calendar and Apple Calendar integration." },
+            { icon: Icons.free,     title: "Free Alternative Detection", desc: "SavFlix checks if your shows are available free with ads on Tubi, Pluto TV, Roku Channel, or Plex — and tells you to cancel the paid version." },
+            { icon: Icons.binge,    title: "Binge-and-Cancel Plans",    desc: "For ended or between-season shows, SavFlix builds a binge timeline with estimated watch time so you can subscribe, binge, and cancel." },
+            { icon: Icons.browse,   title: "Browsing Recommendation",   desc: "Based on what you watch, who watches, and what matters to you — SavFlix picks the single best platform for casual browsing." },
+            { icon: Icons.data,     title: "Real Data, Not Opinions",   desc: "Every recommendation is backed by verified TMDB data: 26,000+ titles, 13 platforms, real library counts, real airing dates." },
           ].map((f) => (
             <div key={f.title} className="group relative p-7 rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent hover:border-purple-500/25 transition-all duration-500">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className="relative z-10">
-                <div className="w-12 h-12 rounded-xl bg-purple-500/[0.08] border border-purple-500/15 flex items-center justify-center text-purple-400 mb-5 icon-glow group-hover:bg-purple-500/[0.12] group-hover:border-purple-500/25 group-hover:text-purple-300 transition-all duration-300">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/[0.08] border border-purple-500/15 flex items-center justify-center text-purple-400 mb-5 group-hover:bg-purple-500/[0.12] group-hover:border-purple-500/25 group-hover:text-purple-300 transition-all duration-300">
                   {f.icon}
                 </div>
                 <h3 className="font-bold text-lg text-white mb-2 group-hover:text-purple-200 transition-colors duration-300" style={{ fontFamily: 'var(--font-heading)' }}>{f.title}</h3>
@@ -389,13 +377,12 @@ export default function Home() {
             Powered by verified data from TMDB. 26,000+ titles across 13 streaming platforms.
           </div>
           <div className="flex gap-6">
-            <a href="#" className="text-[11px] text-gray-600 hover:text-gray-300 transition-colors duration-300">Terms</a>
-            <a href="#" className="text-[11px] text-gray-600 hover:text-gray-300 transition-colors duration-300">Privacy</a>
-            <a href="#" className="text-[11px] text-gray-600 hover:text-gray-300 transition-colors duration-300">Contact</a>
+            <a href="/terms" className="text-[11px] text-gray-600 hover:text-gray-300 transition-colors duration-300">Terms</a>
+            <a href="/privacy" className="text-[11px] text-gray-600 hover:text-gray-300 transition-colors duration-300">Privacy</a>
+            <a href="mailto:support@savflix.com" className="text-[11px] text-gray-600 hover:text-gray-300 transition-colors duration-300">Contact</a>
           </div>
         </div>
       </footer>
-
     </main>
   );
 }
