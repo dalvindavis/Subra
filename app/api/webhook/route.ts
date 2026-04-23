@@ -14,8 +14,8 @@ const supabaseAdmin = createClient(
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig  = req.headers.get('stripe-signature')!;
-
   let event: Stripe.Event;
+
   try {
     event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch (err: any) {
@@ -26,24 +26,24 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const userId   = session.metadata?.userId;
-        const plan     = session.metadata?.plan;
-        const email    = session.customer_details?.email || session.customer_email;
+        const session    = event.data.object as Stripe.Checkout.Session;
+        const userId     = session.metadata?.userId;
+        const plan       = session.metadata?.plan;
+        const email      = session.customer_details?.email || session.customer_email;
         const customerId = session.customer as string;
 
         if (userId && plan) {
-          const planValue = plan === 'lifetime' ? 'lifetime' : plan === 'pro' ? 'pro' : 'basic';  
+          const planValue = plan === 'lifetime' ? 'lifetime' : plan === 'pro' ? 'pro' : 'basic';
           await supabaseAdmin
             .from('profiles')
             .update({
               plan: planValue,
+              scan_count: 0,
               stripe_customer_id: customerId,
               ...(email ? { email } : {}),
             })
             .eq('id', userId);
         } else if (email && !userId) {
-          // Anonymous purchase — look up by email
           const { data: profile } = await supabaseAdmin
             .from('profiles')
             .select('id')
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
               .from('profiles')
               .update({
                 plan: plan === 'lifetime' ? 'lifetime' : plan === 'pro' ? 'pro' : 'basic',
+                scan_count: 0,
                 stripe_customer_id: customerId,
               })
               .eq('id', profile.id);
