@@ -1,22 +1,61 @@
 'use client';
 import { Suspense } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 function SuccessContent() {
-  const [user, setUser] = useState<any>(null);
-  const searchParams    = useSearchParams();
-  const plan            = searchParams.get('plan') || 'basic';
-  const isLifetime      = plan === 'lifetime';
+  const [user,        setUser]        = useState<any>(null);
+  const [plan,        setPlan]        = useState<string | null>(null);
+  const [lastScanId,  setLastScanId]  = useState<string | null>(null);
+  const [polling,     setPolling]     = useState(true);
+  const searchParams  = useSearchParams();
+  const urlPlan       = searchParams.get('plan') || 'basic';
+  const isLifetime    = urlPlan === 'lifetime';
+  const pollRef       = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+
+      if (!user) { setPolling(false); return; }
+
+      // Get last scan
+      const { data: scans } = await supabase
+        .from('analyses')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (scans && scans.length > 0) setLastScanId(scans[0].id);
+
+      // Poll for plan update
+      let attempts = 0;
+      pollRef.current = setInterval(async () => {
+        attempts++;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('plan')
+          .eq('id', user.id)
+          .single();
+        if (profile && profile.plan !== 'free') {
+          setPlan(profile.plan);
+          setPolling(false);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+        if (attempts >= 15) {
+          setPolling(false);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      }, 2000);
     })();
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
+
+  const displayPlan = plan || urlPlan;
+  const isLifetimeDisplay = displayPlan === 'lifetime';
 
   return (
     <div className="w-full max-w-lg text-center">
@@ -31,9 +70,9 @@ function SuccessContent() {
         </span>
       </Link>
 
-      <div className={`rounded-[28px] border p-8 shadow-[0_0_80px_rgba(168,85,247,0.12)] ${isLifetime ? 'border-amber-400/30 bg-gradient-to-b from-[#1A1200] to-[#0D0F14]' : 'border-[#22C55E]/25 bg-[#0D0F14]'}`}>
+      <div className={`rounded-[28px] border p-8 shadow-[0_0_80px_rgba(168,85,247,0.12)] ${isLifetimeDisplay ? 'border-amber-400/30 bg-gradient-to-b from-[#1A1200] to-[#0D0F14]' : 'border-[#22C55E]/25 bg-[#0D0F14]'}`}>
 
-        {isLifetime ? (
+        {isLifetimeDisplay ? (
           <>
             <div className="text-5xl mb-4">👑</div>
             <div className="inline-flex items-center gap-2 bg-amber-400/10 border border-amber-400/25 rounded-full px-4 py-1.5 mb-4">
@@ -43,7 +82,7 @@ function SuccessContent() {
               You own SavFlix.<br />
               <span className="bg-gradient-to-r from-amber-400 to-amber-200 bg-clip-text text-transparent">Forever.</span>
             </h1>
-            <p className="text-white/50 text-sm mb-6">No renewals. No monthly bills. Full access to every feature, every update, for life. You made the smartest decision.</p>
+            <p className="text-white/50 text-sm mb-6">No renewals. No monthly bills. Full access to every feature, every update, for life.</p>
           </>
         ) : (
           <>
@@ -57,12 +96,12 @@ function SuccessContent() {
           </>
         )}
 
-        <div className={`rounded-[20px] p-5 mb-6 text-left ${isLifetime ? 'bg-amber-400/5 border border-amber-400/15' : 'bg-white/[0.03]'}`}>
+        <div className={`rounded-[20px] p-5 mb-6 text-left ${isLifetimeDisplay ? 'bg-amber-400/5 border border-amber-400/15' : 'bg-white/[0.03]'}`}>
           <p className="text-xs uppercase tracking-[0.2em] text-white/30 mb-4">
-            {isLifetime ? "What you own forever" : "What's included"}
+            {isLifetimeDisplay ? "What you own forever" : "What's included"}
           </p>
           <div className="space-y-2.5">
-            {(isLifetime ? [
+            {(isLifetimeDisplay ? [
               "Unlimited streaming scans — forever",
               "Full keep/cut recommendations",
               "AI-powered binge-and-cancel timing",
@@ -81,36 +120,45 @@ function SuccessContent() {
               "Cancel anytime from your account",
             ]).map((item, i) => (
               <div key={i} className="flex items-center gap-3">
-                <span className={`text-sm flex-shrink-0 ${isLifetime ? 'text-amber-400' : 'text-[#22C55E]'}`}>✓</span>
+                <span className={`text-sm flex-shrink-0 ${isLifetimeDisplay ? 'text-amber-400' : 'text-[#22C55E]'}`}>✓</span>
                 <span className="text-sm text-white/60">{item}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {isLifetime && (
-          <div className="bg-gradient-to-r from-amber-400/10 to-amber-200/5 border border-amber-400/20 rounded-2xl p-4 mb-6">
-            <div className="text-amber-300 text-sm font-medium mb-1">🎉 You saved $35.88/year vs monthly</div>
-            <div className="text-amber-400/60 text-xs">Most members recoup the cost in their first scan.</div>
+        {/* Plan activation status */}
+        {polling && user && (
+          <div className="flex items-center justify-center gap-2 mb-4 text-white/40 text-sm">
+            <div className="w-4 h-4 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            Activating your plan...
+          </div>
+        )}
+
+        {!polling && plan && (
+          <div className="bg-[#22C55E]/10 border border-[#22C55E]/20 rounded-2xl px-4 py-2.5 mb-4">
+            <div className="text-[#22C55E] text-sm font-medium">✓ Plan activated — you're all set!</div>
           </div>
         )}
 
         {user ? (
           <div className="flex flex-col gap-3">
+            {lastScanId && (
+              <Link href="/analyze"
+                className={`block rounded-2xl px-6 py-3.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] bg-gradient-to-r from-[#22C55E] to-[#A855F7] shadow-[0_12px_40px_rgba(168,85,247,0.24)]`}>
+                Run a New Scan Now
+              </Link>
+            )}
             <Link href="/dashboard"
-              className={`block rounded-2xl px-6 py-3.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] ${isLifetime ? 'bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_12px_40px_rgba(251,191,36,0.24)]' : 'bg-gradient-to-r from-[#22C55E] to-[#A855F7] shadow-[0_12px_40px_rgba(168,85,247,0.24)]'}`}>
-              Go to Dashboard
-            </Link>
-            <Link href="/analyze"
               className="block rounded-2xl border border-white/15 bg-white/5 px-6 py-3.5 text-sm font-semibold text-white hover:bg-white/10 transition-all">
-              Run a Scan Now
+              Go to Dashboard
             </Link>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-white/40 text-sm mb-2">Create your account to access your dashboard and save your results.</p>
             <Link href="/auth"
-              className={`block rounded-2xl px-6 py-3.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] ${isLifetime ? 'bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_12px_40px_rgba(251,191,36,0.24)]' : 'bg-gradient-to-r from-[#22C55E] to-[#A855F7] shadow-[0_12px_40px_rgba(168,85,247,0.24)]'}`}>
+              className={`block rounded-2xl px-6 py-3.5 text-sm font-semibold text-white transition-all hover:scale-[1.02] ${isLifetimeDisplay ? 'bg-gradient-to-r from-amber-500 to-amber-300' : 'bg-gradient-to-r from-[#22C55E] to-[#A855F7]'}`}>
               Create Your Account
             </Link>
             <Link href="/analyze"
